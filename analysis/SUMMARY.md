@@ -34,9 +34,8 @@ This context means some common concerns (e.g., SNAPSHOT versioning, BOM modules,
 |-------|-------------------|--------|
 | Documentation gaps | swissknife, pillar, gradle-plugins, tools | Onboarding difficulty for future-self and AI agents |
 | Zero tests | gradle-plugins, acme-schema-catalogue, tools | Silent regressions |
-| Configuration cache disabled | All except backend-skeleton | Slower builds on every rebuild |
 | No distributed tracing | modulith-example, element-service-example | Observability gap |
-| gradle-plugins consumers still use `apply<Class>()` | All legacy consumers | Consumers could migrate to `plugins { id("sollecitom.xyz") }` and `includeBuild` for faster iteration |
+| Consumers still use `buildscript { classpath }` | All except backend-skeleton | Could switch to `includeBuild` for live source changes without `publishToMavenLocal` |
 
 ## gradle-plugins: Proper Plugins (Done)
 
@@ -57,13 +56,11 @@ Gradle-plugins now registers proper plugin IDs via `gradlePlugin { plugins { } }
 
 ### Current state
 - Plugin IDs are registered and published to mavenLocal
-- Backward compatible — existing `apply<ClassName>()` usage still works
-- Consumers can incrementally migrate to `plugins { id("sollecitom.xyz") }` and `includeBuild`
+- All consumers migrated from `apply<ClassName>()` to `apply(plugin = "sollecitom.xyz")`
+- `buildscript { classpath }` is kept for jar resolution and utility class access (`RepositoryConfiguration`, `Plugins`, etc.)
 
 ### Remaining steps
-- Migrate consumers from `apply<Class>()` to `plugins { id("sollecitom.xyz") }`
 - Switch consumers from `buildscript { classpath }` to `includeBuild` for live source changes without `publishToMavenLocal`
-- Enable configuration cache in consumer projects once migrated
 
 ## Documentation Gaps
 
@@ -107,9 +104,15 @@ After running `versionCatalogUpdate`, these constants need manual updating to ma
 2. **Lint check** — a script or Gradle task that compares `libs.versions.toml` entries against the hardcoded constants and fails/warns on mismatch. Simpler, catches drift at build time.
 3. **Manual** (current) — update the 3 constants when `versionCatalogUpdate` bumps Pulsar, Keycloak, or Postgres.
 
+## Configuration Cache (Done)
+
+Enabled across all 11 projects (`org.gradle.configuration-cache=true`). Palantir Git Version 5.0.0 and Jib 3.5.3 are both compatible — the original blockers were outdated.
+
+**Jib caveat**: `jibDockerBuild` tasks fail at runtime with configuration cache because Jib serializes `Project`. In modulith-example and element-service-example, `just build` splits into two Gradle invocations — `build` with config cache, then `jibDockerBuild`/`containerBasedServiceTest` with `--no-configuration-cache`.
+
 ## Top 5 High-Impact Improvements
 
-1. **Enable configuration cache** — you rebuild constantly; this saves real time. gradle-plugins now has proper plugin IDs; next step is migrating consumers to `plugins { id() }` + `includeBuild`
+1. **Switch consumers to `includeBuild`** — eliminate the `publishToMavenLocal` step; local gradle-plugins changes apply immediately on rebuild
 2. **Add tests to gradle-plugins** — every project depends on it, breakage is silent
 3. **Add schema validation to acme-schema-catalogue** — catch invalid schemas at build time instead of at runtime
 4. **Improve documentation for AI agent context** — add CONTEXT.md / CLAUDE.md files and module READMEs to swissknife and pillar
