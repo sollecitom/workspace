@@ -6,7 +6,7 @@
 |---|---|---|
 | Purpose | General-purpose Kotlin libraries | Domain-specific / company-specific libraries |
 | Modules | ~90 | ~36 |
-| Modules without tests | 20 (22%) | 17 (47%) |
+| Modules without tests | 6 (7%) | 12 (33%) |
 | Critical issues | 6 | 5 |
 
 ---
@@ -97,54 +97,38 @@ If `firstName` or `lastName` are empty strings, produces malformed output with l
 
 ## 2. Test Coverage Gaps
 
-### Swissknife — 20 modules without tests
+### Swissknife — 6 modules still without tests
 
-| Module | Risk |
-|--------|------|
-| `core/utils` | HIGH — fundamental utilities used everywhere |
-| `core/domain` | HIGH — core domain types |
-| `ddd/domain` | HIGH — DDD building blocks |
-| `messaging/domain` | HIGH — messaging abstractions |
-| `json/utils` | HIGH — JSON parsing with unsafe casts |
-| `cryptography/domain` | HIGH — security-sensitive interfaces |
-| `jwt/domain` | MEDIUM — JWT types |
-| `pulsar/utils` | MEDIUM — Pulsar client wrapper |
-| `nats/client` | MEDIUM — NATS client |
-| `http4k/utils` | MEDIUM — HTTP utilities |
-| `openapi/builder` | LOW |
-| `openapi/provider` | LOW |
-| `opentelemetry/core` | LOW |
-| `pagination/domain` | LOW |
-| `protected-value/domain` | LOW |
-| `readiness/domain` | LOW |
-| `serialization/domain` | LOW |
-| `service/domain` | LOW |
-| `sql/domain` | LOW |
-| `test/utils` | LOW — test utilities themselves |
-| `compliance-checker/domain` | LOW |
+Tests were added to 14 previously untested modules. Remaining untested:
 
-### Pillar — 17 modules without tests
+| Module | Reason |
+|--------|--------|
+| `openapi/provider` | Infrastructure-dependent (classpath/file I/O) |
+| `opentelemetry/core` | Pure interface, no testable logic |
+| `pulsar/utils` | Requires running Pulsar broker |
+| `nats/client` | Requires running NATS server |
+| `serialization/domain` | Pure interfaces only |
+| `test/utils` | Test infrastructure itself |
 
-| Module | Risk |
-|--------|------|
-| `web/api/utils` | **CRITICAL** — security-sensitive JWT parsing and invocation context, contains 3 bugs listed above |
-| `jwt/domain` | HIGH — JWT domain types with validation gaps |
-| `acme/business/domain` | HIGH — core business domain |
-| `messaging/conventions` | MEDIUM — messaging patterns |
-| `messaging/domain` | MEDIUM — contains race condition bug |
-| `correlation/logging/utils` | MEDIUM |
-| `acme/conventions` | LOW |
-| `http/api/conventions` | LOW |
-| `jwt/test/utils` | LOW |
-| `messaging/avro` | LOW |
-| `messaging/json` | LOW |
-| `messaging/pulsar/avro` | LOW |
-| `messaging/pulsar/json` | LOW |
-| `messaging/test/utils` | LOW |
-| `prometheus/micrometer/registry` | LOW |
-| `protected-value/domain` | LOW |
-| `service/container-based/test` | LOW |
-| `service/logging` | LOW |
+### Pillar — 12 modules still without tests
+
+Tests were added to 5 previously untested modules. Remaining untested:
+
+| Module | Reason |
+|--------|--------|
+| `web/api/utils` | **CRITICAL** — tightly coupled to http4k, needs integration test setup |
+| `correlation/logging/utils` | Thin wrapper, minimal logic |
+| `messaging/domain` | Requires coroutine Flow/Message infrastructure |
+| `acme/conventions` | Pure interfaces only |
+| `messaging/avro` | Simple delegation, no logic |
+| `messaging/json` | Simple delegation, no logic |
+| `messaging/pulsar/avro` | Requires Pulsar |
+| `messaging/pulsar/json` | Requires Pulsar |
+| `protected-value/domain` | Just a typealias |
+| `prometheus/micrometer/registry` | Requires server infrastructure |
+| `jwt/test/utils` | Test infrastructure |
+| `messaging/test/utils` | Test infrastructure |
+| `service/container-based/test` | Test infrastructure |
 
 ---
 
@@ -298,10 +282,7 @@ All internal dependencies are `1.0.0-SNAPSHOT`. Two builds on different days may
 
 | # | Project | Issue |
 |---|---------|-------|
-| 11 | pillar | Add tests for `web/api/utils` — most critical untested module |
-| 12 | swissknife | Add tests for `core/utils`, `core/domain`, `json/utils` |
-| 13 | swissknife | Add tests for `ddd/domain`, `messaging/domain` |
-| 14 | pillar | Add tests for `jwt/domain`, `acme/business/domain` |
+| 11 | pillar | Add integration tests for `web/api/utils` — most critical untested module, requires http4k test setup |
 
 ### Long-term (design)
 
