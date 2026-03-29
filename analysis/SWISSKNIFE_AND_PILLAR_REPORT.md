@@ -7,7 +7,7 @@
 | Purpose | General-purpose Kotlin libraries | Domain-specific / company-specific libraries |
 | Modules | ~90 | ~36 |
 | Modules without tests | 20 (22%) | 17 (47%) |
-| Critical issues | 6 | 6 |
+| Critical issues | 6 | 5 |
 
 ---
 
@@ -75,16 +75,6 @@ emailAddress.split("@").drop(1).single().removeFromLast(".")
 - `single()` throws if there are 0 or 2+ `@` symbols (malformed email)
 - `removeFromLast()` fails if there's no `.` in domain
 - No validation or error handling
-
-#### HIGH — Race condition in MessagingEventProcessor
-
-**File**: `messaging/domain/.../MessagingEventProcessor.kt:60`
-
-```kotlin
-CoroutineScope(Job())  // TODO should this be SupervisorJob()?
-```
-
-Using `Job()` means if one message processing fails, the entire processor stops. Should use `SupervisorJob()` to isolate failures.
 
 #### MEDIUM — Missing validation in User.fullName
 
@@ -294,7 +284,6 @@ All internal dependencies are `1.0.0-SNAPSHOT`. Two builds on different days may
 | 1 | pillar | Hardcoded Example.tenant | `GatewayInvocationContextFilter.kt:134` |
 | 2 | pillar | Hardcoded Customer.isTest=false | `GatewayInvocationContextFilter.kt:133,149` |
 | 3 | pillar | Unsafe email parsing | `AcmeJwtScheme.kt:72` |
-| 4 | pillar | Race condition (Job vs SupervisorJob) | `MessagingEventProcessor.kt:60` |
 
 ### Short-term (correctness and safety)
 
