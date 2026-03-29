@@ -107,6 +107,24 @@ update-all:
     echo ""
     echo "✓ All modules pushed successfully!"
 
+@build-and-publish-workspace:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    start_dir="$(pwd)"
+    trap 'cd "$start_dir"' EXIT
+    for module in {{all_modules}}; do
+        echo ""
+        echo "========================================"
+        echo "Building $module..."
+        echo "========================================"
+        cd "$start_dir/$module"
+        just build
+        [[ " {{publishable}} " =~ " $module " ]] && just publish || true
+        echo "✓ $module built and published successfully"
+    done
+    echo ""
+    echo "✓ All modules built and published successfully!"
+
 @build-workspace:
     #!/usr/bin/env bash
     set -euo pipefail

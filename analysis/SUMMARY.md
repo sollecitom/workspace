@@ -35,7 +35,6 @@ This context means some common concerns (e.g., SNAPSHOT versioning, BOM modules,
 | Documentation gaps | swissknife, pillar, gradle-plugins, tools | Onboarding difficulty for future-self and AI agents |
 | Zero tests | gradle-plugins, acme-schema-catalogue, tools | Silent regressions |
 | No distributed tracing | modulith-example, element-service-example | Observability gap |
-| Consumers still use `buildscript { classpath }` | All except backend-skeleton | Could switch to `includeBuild` for live source changes without `publishToMavenLocal` |
 
 ## gradle-plugins: Proper Plugins (Done)
 
@@ -57,10 +56,8 @@ Gradle-plugins now registers proper plugin IDs via `gradlePlugin { plugins { } }
 ### Current state
 - Plugin IDs are registered and published to mavenLocal
 - All consumers migrated from `apply<ClassName>()` to `apply(plugin = "sollecitom.xyz")`
-- `buildscript { classpath }` is kept for jar resolution and utility class access (`RepositoryConfiguration`, `Plugins`, etc.)
-
-### Remaining steps
-- Switch consumers from `buildscript { classpath }` to `includeBuild` for live source changes without `publishToMavenLocal`
+- All consumers use `includeBuild` for gradle-plugins, swissknife, pillar, and acme-schema-catalogue — no `publishToMavenLocal` needed for builds
+- `buildscript { classpath }` is kept for utility class access (`RepositoryConfiguration`, `Plugins`, etc.)
 
 ## Documentation Gaps
 
@@ -112,8 +109,7 @@ Enabled across all 11 projects (`org.gradle.configuration-cache=true`). Palantir
 
 ## Top 5 High-Impact Improvements
 
-1. **Switch consumers to `includeBuild`** — eliminate the `publishToMavenLocal` step; local gradle-plugins changes apply immediately on rebuild
-2. **Add tests to gradle-plugins** — every project depends on it, breakage is silent
+1. **Add tests to gradle-plugins** — every project depends on it, breakage is silent
 3. **Add schema validation to acme-schema-catalogue** — catch invalid schemas at build time instead of at runtime
 4. **Improve documentation for AI agent context** — add CONTEXT.md / CLAUDE.md files and module READMEs to swissknife and pillar
 5. **Complete the modulith-example** — finish CQRS queries and OpenTelemetry tracing to make it a complete reference architecture
