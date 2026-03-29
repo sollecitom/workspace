@@ -1,9 +1,8 @@
 #!/usr/bin/env just --justfile
 
 # Project modules (order matters: dependencies first)
-# gradle-plugins is no longer published during build — consumers use includeBuild
-publishable := "acme-schema-catalogue swissknife pillar"
-non_publishable := "gradle-plugins tools examples facts backend-skeleton modulith-example element-service-example"
+publishable := "gradle-plugins acme-schema-catalogue swissknife pillar"
+non_publishable := "tools examples facts backend-skeleton modulith-example element-service-example"
 all_modules := publishable + " " + non_publishable
 
 # Git operations
@@ -49,7 +48,6 @@ update-all:
         just pull
         just update-all
         just build
-        [[ " {{publishable}} " =~ " $module " ]] && just publish || true
         echo "✓ $module updated successfully"
     done
     echo ""
@@ -69,7 +67,6 @@ update-all:
         git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
         just pull
         just build
-        [[ " {{publishable}} " =~ " $module " ]] && just publish || true
         echo "✓ $module pulled successfully"
     done
     echo ""
@@ -88,7 +85,6 @@ update-all:
         cd "$start_dir/$module"
         git clean -fdx && git reset --hard
         just build
-        [[ " {{publishable}} " =~ " $module " ]] && just publish || true
         echo "✓ $module reset successfully"
     done
     echo ""
@@ -123,7 +119,6 @@ update-all:
         echo "========================================"
         cd "$start_dir/$module"
         just build
-        [[ " {{publishable}} " =~ " $module " ]] && just publish || true
         echo "✓ $module built successfully"
     done
     echo ""
@@ -144,7 +139,6 @@ update-all:
         git clone "git@github.com:sollecitom/$module.git"
         cd "$start_dir/$module"
         just build
-        [[ " {{publishable}} " =~ " $module " ]] && just publish || true
         echo "✓ $module reinstalled successfully"
     done
     echo ""
