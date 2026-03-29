@@ -125,6 +125,23 @@ update-all:
     echo ""
     echo "✓ All modules built and published successfully!"
 
+@rebuild-workspace:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    start_dir="$(pwd)"
+    trap 'cd "$start_dir"' EXIT
+    for module in {{all_modules}}; do
+        echo ""
+        echo "========================================"
+        echo "Rebuilding $module..."
+        echo "========================================"
+        cd "$start_dir/$module"
+        just rebuild
+        echo "✓ $module rebuilt successfully"
+    done
+    echo ""
+    echo "✓ All modules rebuilt successfully!"
+
 @build-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
