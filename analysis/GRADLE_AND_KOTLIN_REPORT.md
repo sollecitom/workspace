@@ -355,8 +355,8 @@ Backend-skeleton represents the target state. Here's how it compares:
 | `afterEvaluate` | Not used | Used by 5 conventions |
 | `buildSrc` | None | Present (empty — only classpath) |
 | Configuration on demand | Works | Broken (due to `allprojects`) |
-| `kotlin.incremental` | Not set (default: true) | Explicitly false |
-| Property format | Correct | Invalid `-D` prefix |
+| `kotlin.incremental` | Not set (default: true) | ~~Explicitly false~~ Fixed: now true |
+| Property format | Correct | ~~Invalid `-D` prefix~~ Fixed |
 
 ---
 
@@ -364,15 +364,15 @@ Backend-skeleton represents the target state. Here's how it compares:
 
 Ordered by impact-to-effort ratio:
 
-| # | Improvement | Impact | Effort |
-|---|-------------|--------|--------|
-| 1 | Fix `-D` prefix in `gradle.properties` across all projects | Properties likely not taking effect; fix is trivial | Trivial |
-| 2 | Fix facts `projectGroup` | Wrong group for published artifacts | Trivial |
-| 3 | Remove `kotlin.time.ExperimentalTime` opt-in | Stable since Kotlin 1.9, unnecessary | Trivial |
-| 4 | Enable `kotlin.incremental=true` | Faster rebuilds for 98+ module projects | Trivial |
-| 5 | Remove `org.gradle.configureondemand=true` | Not working with `allprojects`, may cause `includeBuild` issues | Low |
-| 6 | Remove `afterEvaluate` from convention plugins | Better configuration cache compat, prepares for project isolation | Medium |
-| 7 | Eliminate `buildSrc` — use `pluginManagement { includeBuild }` instead | Remove build penalty, cleaner architecture | Medium |
-| 8 | Replace `allprojects`/`subprojects` with per-module `plugins { }` blocks | Enable project isolation, fix configure on demand, cleaner builds | High |
-| 9 | Add Gradle wrapper SHA-256 checksum | Supply-chain security | Low |
-| 10 | Add `[bundles]` to version catalogs | Reduce dependency boilerplate | Low |
+| # | Improvement | Impact | Effort | Status |
+|---|-------------|--------|--------|--------|
+| 1 | ~~Fix `-D` prefix in `gradle.properties`~~ | Properties were silently ignored | Trivial | **Done** |
+| 2 | ~~Fix facts `projectGroup`~~ | Wrong group for published artifacts | Trivial | **Done** |
+| 3 | ~~Remove `kotlin.time.ExperimentalTime` opt-in~~ | Stable since Kotlin 1.9 | Trivial | **Done** |
+| 4 | ~~Enable `kotlin.incremental=true`~~ | Faster rebuilds for 98+ module projects | Trivial | **Done** |
+| 5 | Remove `org.gradle.configureondemand=true` | Not working with `allprojects`, may cause `includeBuild` issues | Low | |
+| 6 | Remove `afterEvaluate` from convention plugins | Better config cache compat, prepares for project isolation | Medium | |
+| 7 | Eliminate `buildSrc` — use `pluginManagement { includeBuild }` | Remove build penalty, cleaner architecture | Medium | |
+| 8 | Replace `allprojects`/`subprojects` with per-module `plugins { }` blocks | Enable project isolation, fix configure on demand | High | |
+| 9 | Add Gradle wrapper SHA-256 checksum | Supply-chain security | Low | |
+| 10 | Add `[bundles]` to version catalogs | Reduce dependency boilerplate | Low | |
