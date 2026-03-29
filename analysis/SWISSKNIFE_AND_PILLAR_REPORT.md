@@ -7,25 +7,13 @@
 | Purpose | General-purpose Kotlin libraries | Domain-specific / company-specific libraries |
 | Modules | ~90 | ~36 |
 | Modules without tests | 20 (22%) | 17 (47%) |
-| Critical issues | 8 | 6 |
+| Critical issues | 6 | 6 |
 
 ---
 
 ## 1. Bugs and Correctness Issues
 
 ### Swissknife
-
-#### HIGH — Logic error in FlowChunkingExtensions
-
-**File**: `modules/kotlin/extensions/src/main/kotlin/.../FlowChunkingExtensions.kt:37`
-
-`delay(1.seconds)` is hardcoded instead of using the `maxChunkingPeriod` parameter. The periodic flush timer always uses 1-second intervals regardless of configuration. The parameter is silently ignored.
-
-#### HIGH — Resource leak in FileContent.Remote
-
-**File**: `modules/core/domain/src/main/kotlin/.../FileContent.kt:43`
-
-`contentURI.toURL().openStream()` returns an InputStream that is never closed. Callers must manage cleanup but there's no documented requirement or wrapper to enforce this. Potential socket/file descriptor leak.
 
 #### HIGH — Unsafe type casts without guards
 
@@ -307,8 +295,6 @@ All internal dependencies are `1.0.0-SNAPSHOT`. Two builds on different days may
 | 2 | pillar | Hardcoded Customer.isTest=false | `GatewayInvocationContextFilter.kt:133,149` |
 | 3 | pillar | Unsafe email parsing | `AcmeJwtScheme.kt:72` |
 | 4 | pillar | Race condition (Job vs SupervisorJob) | `MessagingEventProcessor.kt:60` |
-| ~~5~~ | ~~swissknife~~ | ~~FlowChunking ignores maxChunkingPeriod~~ | ~~`FlowChunkingExtensions.kt:37`~~ **Fixed** |
-| ~~6~~ | ~~swissknife~~ | ~~Resource leak in FileContent.Remote~~ | Not a bug — `open()` returns InputStream, caller uses `use { }`. **Added KDoc** to clarify contract |
 
 ### Short-term (correctness and safety)
 
