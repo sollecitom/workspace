@@ -307,8 +307,8 @@ All internal dependencies are `1.0.0-SNAPSHOT`. Two builds on different days may
 | 2 | pillar | Hardcoded Customer.isTest=false | `GatewayInvocationContextFilter.kt:133,149` |
 | 3 | pillar | Unsafe email parsing | `AcmeJwtScheme.kt:72` |
 | 4 | pillar | Race condition (Job vs SupervisorJob) | `MessagingEventProcessor.kt:60` |
-| 5 | swissknife | FlowChunking ignores maxChunkingPeriod | `FlowChunkingExtensions.kt:37` |
-| 6 | swissknife | Resource leak in FileContent.Remote | `FileContent.kt:43` |
+| ~~5~~ | ~~swissknife~~ | ~~FlowChunking ignores maxChunkingPeriod~~ | ~~`FlowChunkingExtensions.kt:37`~~ **Fixed** |
+| ~~6~~ | ~~swissknife~~ | ~~Resource leak in FileContent.Remote~~ | Not a bug — `open()` returns InputStream, caller uses `use { }`. **Added KDoc** to clarify contract |
 
 ### Short-term (correctness and safety)
 
