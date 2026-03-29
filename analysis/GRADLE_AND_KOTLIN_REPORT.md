@@ -370,16 +370,14 @@ Ordered by recommended execution sequence:
 | ~~2~~ | ~~Fix facts `projectGroup`~~ | ~~Trivial~~ | **Done** |
 | ~~3~~ | ~~Remove `kotlin.time.ExperimentalTime` opt-in~~ | ~~Trivial~~ | **Done** |
 | ~~4~~ | ~~Enable `kotlin.incremental=true`~~ | ~~Trivial~~ | **Done** |
-| 5 | Remove `org.gradle.configureondemand=true` | Low | |
-| 6 | Remove `afterEvaluate` from convention plugins | Medium | |
-| 7 | Add Gradle wrapper SHA-256 checksum | Low | |
+| ~~5~~ | ~~Remove `org.gradle.configureondemand=true`~~ | ~~Low~~ | **Done** |
+| ~~6~~ | ~~Remove `afterEvaluate` from convention plugins~~ | ~~Medium~~ | **Done** (4 of 5 removed; Jib kept with comment — Jib's API uses plain Strings, not Gradle Properties) |
+| ~~7~~ | ~~Add Gradle wrapper SHA-256 checksum~~ | ~~Low~~ | **Done** |
 | 8 | Add `[bundles]` to version catalogs | Low | |
 | 9 | Replace `allprojects`/`subprojects` with per-module `plugins { }` blocks | High | |
 | 10 | Eliminate `buildSrc` — use `pluginManagement { includeBuild }` | Medium | |
 
-Notes on ordering:
-- **#5** is a trivial sed with no dependencies — removes a setting that doesn't work with `allprojects` and may cause `includeBuild` issues
-- **#6** is self-contained within gradle-plugins — makes conventions work correctly when later applied per-module instead of from a root `allprojects` block
-- **#7, #8** are independent and can be done any time
-- **#9** is the big structural change, but easier after #6 (conventions already use lazy config)
+Notes on remaining items:
+- **#8** is independent and can be done any time — reduces dependency boilerplate in submodule build files
+- **#9** is the big structural change — each submodule declares its own plugins, enabling project isolation and proper configure-on-demand
 - **#10** falls out naturally from #9 — once submodules declare their own plugins, `buildSrc` is no longer needed as a classpath bridge
