@@ -373,9 +373,7 @@ Ordered by recommended execution sequence:
 | ~~5~~ | ~~Remove `org.gradle.configureondemand=true`~~ | ~~Low~~ | **Done** |
 | ~~6~~ | ~~Remove `afterEvaluate` from convention plugins~~ | ~~Medium~~ | **Done** (4 of 5 removed; Jib kept with comment — Jib's API uses plain Strings, not Gradle Properties) |
 | ~~7~~ | ~~Add Gradle wrapper SHA-256 checksum~~ | ~~Low~~ | **Done** |
-| 8 | Replace `allprojects`/`subprojects` with per-module `plugins { }` blocks | High | |
-| 9 | Eliminate `buildSrc` — use `pluginManagement { includeBuild }` | Medium | |
+| ~~8~~ | ~~Replace `allprojects`/`subprojects` with per-module `plugins { }` blocks~~ | ~~High~~ | **Done** — created `sollecitom.kotlin-library-conventions` composite plugin; all submodules now self-contained |
+| ~~9~~ | ~~Eliminate `buildSrc`~~ | ~~Medium~~ | **Done** — all projects use `pluginManagement { includeBuild("../gradle-plugins") }`; `buildSrc` removed from all 10 projects |
 
-Notes on remaining items:
-- **#8** is the big structural change — each submodule declares its own plugins, enabling project isolation and proper configure-on-demand
-- **#9** falls out naturally from #8 — once submodules declare their own plugins, `buildSrc` is no longer needed as a classpath bridge
+All improvements complete.
