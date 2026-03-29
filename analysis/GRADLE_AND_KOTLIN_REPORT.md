@@ -362,17 +362,24 @@ Backend-skeleton represents the target state. Here's how it compares:
 
 ## Priority Improvements
 
-Ordered by impact-to-effort ratio:
+Ordered by recommended execution sequence:
 
-| # | Improvement | Impact | Effort | Status |
-|---|-------------|--------|--------|--------|
-| 1 | ~~Fix `-D` prefix in `gradle.properties`~~ | Properties were silently ignored | Trivial | **Done** |
-| 2 | ~~Fix facts `projectGroup`~~ | Wrong group for published artifacts | Trivial | **Done** |
-| 3 | ~~Remove `kotlin.time.ExperimentalTime` opt-in~~ | Stable since Kotlin 1.9 | Trivial | **Done** |
-| 4 | ~~Enable `kotlin.incremental=true`~~ | Faster rebuilds for 98+ module projects | Trivial | **Done** |
-| 5 | Remove `org.gradle.configureondemand=true` | Not working with `allprojects`, may cause `includeBuild` issues | Low | |
-| 6 | Remove `afterEvaluate` from convention plugins | Better config cache compat, prepares for project isolation | Medium | |
-| 7 | Eliminate `buildSrc` — use `pluginManagement { includeBuild }` | Remove build penalty, cleaner architecture | Medium | |
-| 8 | Replace `allprojects`/`subprojects` with per-module `plugins { }` blocks | Enable project isolation, fix configure on demand | High | |
-| 9 | Add Gradle wrapper SHA-256 checksum | Supply-chain security | Low | |
-| 10 | Add `[bundles]` to version catalogs | Reduce dependency boilerplate | Low | |
+| # | Improvement | Effort | Status |
+|---|-------------|--------|--------|
+| ~~1~~ | ~~Fix `-D` prefix in `gradle.properties`~~ | ~~Trivial~~ | **Done** |
+| ~~2~~ | ~~Fix facts `projectGroup`~~ | ~~Trivial~~ | **Done** |
+| ~~3~~ | ~~Remove `kotlin.time.ExperimentalTime` opt-in~~ | ~~Trivial~~ | **Done** |
+| ~~4~~ | ~~Enable `kotlin.incremental=true`~~ | ~~Trivial~~ | **Done** |
+| 5 | Remove `org.gradle.configureondemand=true` | Low | |
+| 6 | Remove `afterEvaluate` from convention plugins | Medium | |
+| 7 | Add Gradle wrapper SHA-256 checksum | Low | |
+| 8 | Add `[bundles]` to version catalogs | Low | |
+| 9 | Replace `allprojects`/`subprojects` with per-module `plugins { }` blocks | High | |
+| 10 | Eliminate `buildSrc` — use `pluginManagement { includeBuild }` | Medium | |
+
+Notes on ordering:
+- **#5** is a trivial sed with no dependencies — removes a setting that doesn't work with `allprojects` and may cause `includeBuild` issues
+- **#6** is self-contained within gradle-plugins — makes conventions work correctly when later applied per-module instead of from a root `allprojects` block
+- **#7, #8** are independent and can be done any time
+- **#9** is the big structural change, but easier after #6 (conventions already use lazy config)
+- **#10** falls out naturally from #9 — once submodules declare their own plugins, `buildSrc` is no longer needed as a classpath bridge
