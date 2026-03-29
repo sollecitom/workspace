@@ -1,8 +1,9 @@
 #!/usr/bin/env just --justfile
 
 # Project modules (order matters: dependencies first)
-publishable := "gradle-plugins acme-schema-catalogue swissknife pillar"
-non_publishable := "tools examples facts backend-skeleton modulith-example element-service-example"
+# gradle-plugins is no longer published during build — consumers use includeBuild
+publishable := "acme-schema-catalogue swissknife pillar"
+non_publishable := "gradle-plugins tools examples facts backend-skeleton modulith-example element-service-example"
 all_modules := publishable + " " + non_publishable
 
 # Git operations
