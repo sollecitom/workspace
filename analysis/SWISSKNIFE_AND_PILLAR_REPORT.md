@@ -7,7 +7,7 @@
 | Purpose | General-purpose Kotlin libraries | Domain-specific / company-specific libraries |
 | Modules | ~90 | ~36 |
 | Modules without tests | 6 (7%) | 12 (33%) |
-| Critical issues | 6 | 5 |
+| Critical issues | 6 | 3 |
 
 ---
 
@@ -44,25 +44,11 @@ Multiple locations with unchecked casts that will throw ClassCastException on wr
 
 ### Pillar
 
-#### HIGH — Hardcoded Example.tenant in production code
+#### LOW — Hardcoded Example.tenant and Customer.isTest in GatewayInvocationContextFilter
 
-**File**: `web/api/utils/.../GatewayInvocationContextFilter.kt:134`
+**File**: `web/api/utils/.../GatewayInvocationContextFilter.kt`
 
-```kotlin
-val userAccount = UserAccount(..., tenant = Example.tenant)
-```
-
-All authenticated users are associated with the example tenant regardless of their actual JWT claims. Marked with TODO "remove" but not implemented. This is a **security/correctness issue** for multi-tenancy.
-
-#### HIGH — Hardcoded Customer.isTest=false
-
-**File**: `web/api/utils/.../GatewayInvocationContextFilter.kt:133, 149`
-
-```kotlin
-Customer(id = customerId, isTest = false)
-```
-
-Two locations create Customer with hardcoded `isTest = false` and TODO "look this up from an injected function". Bypasses customer metadata lookup.
+This filter is **early WIP and unused**. Known issues (hardcoded `Example.tenant`, `Customer.isTest=false`, missing tenant resolver) are expected for unfinished code and not actionable until the filter is completed.
 
 #### HIGH — Unsafe email parsing in JWT
 
@@ -158,7 +144,7 @@ Multiple "companion object" factory methods with no consistent naming:
 
 ### Leaky abstractions (pillar)
 
-- `GatewayInvocationContextFilter` depends on `Example.tenant` from business domain — should inject a tenant resolver
+- `GatewayInvocationContextFilter` depends on `Example.tenant` from business domain — early WIP, not yet actionable
 - `acme/business/domain` imports from `messaging/conventions` and `http/api/conventions` — inverted dependency (conventions should depend on domain, not vice versa)
 
 ### Inconsistent naming (pillar)
@@ -265,9 +251,7 @@ All internal dependencies are `1.0.0-SNAPSHOT`. Two builds on different days may
 
 | # | Project | Issue | File |
 |---|---------|-------|------|
-| 1 | pillar | Hardcoded Example.tenant | `GatewayInvocationContextFilter.kt:134` |
-| 2 | pillar | Hardcoded Customer.isTest=false | `GatewayInvocationContextFilter.kt:133,149` |
-| 3 | pillar | Unsafe email parsing | `AcmeJwtScheme.kt:72` |
+| 1 | pillar | Unsafe email parsing | `AcmeJwtScheme.kt:72` |
 
 ### Short-term (correctness and safety)
 
@@ -289,7 +273,6 @@ All internal dependencies are `1.0.0-SNAPSHOT`. Two builds on different days may
 | # | Project | Issue |
 |---|---------|-------|
 | 15 | pillar | Resolve Tenant/Customer/Organization confusion — define clear multi-tenancy model |
-| 16 | pillar | Inject tenant resolver instead of hardcoding Example.tenant |
-| 17 | pillar | Fix dependency direction: conventions should depend on business domain, not vice versa |
+| 16 | pillar | Fix dependency direction: conventions should depend on business domain, not vice versa |
 | 18 | both | Add module-level READMEs for at least the top 20 most-used modules |
 | 19 | both | Extract repeated patterns (null-assert, type-cast, serde template) into shared utilities |
