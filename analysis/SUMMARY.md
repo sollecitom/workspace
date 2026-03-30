@@ -108,8 +108,7 @@ Enabled across all 11 projects (`org.gradle.configuration-cache=true`). Palantir
 ### Bugs (from swissknife & pillar report)
 
 1. **pillar: Unsafe email parsing** in `AcmeJwtScheme.kt:72` — ~~uses `single()` on split~~ **Fixed**: now uses `EmailAddress` value class for validation
-2. **swissknife: Unsafe type casts** in JsonExtensions and AvroGenericRecordExtensions — unchecked casts throw ClassCastException on wrong input
-3. **swissknife: Null assertion operators** in Topic.Namespace.parse() and Trie — `!!` can NPE
+2. **swissknife: Null assertion operators** in Topic.Namespace.parse() and Trie — `!!` can NPE
 4. **pillar: Missing domain validation** — User (blank names), Access (empty roles), Token (expiry ordering), Authentication ACR values
 
 ### Improvements

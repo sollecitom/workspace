@@ -15,24 +15,20 @@
 
 ### Swissknife
 
-#### HIGH — Unsafe type casts without guards
-
-Multiple locations with unchecked casts that will throw ClassCastException on wrong input:
+#### MEDIUM — Unsafe type cast without guard
 
 | File | Line | Cast |
 |------|------|------|
-| `openapi/validation/http4k/validator/.../ResponseJsonBodyValidator.kt` | 28 | `rawResponse as ResponseWithHeadersAdapter` |
-| `json/utils/.../JsonExtensions.kt` | 35 | `get(index) as JSONObject` |
-| `json/utils/.../JsonExtensions.kt` | 59, 62 | `it as String`, `it as Int` |
-| `avro/serialization/utils/.../AvroGenericRecordExtensions.kt` | 17-47 | 10+ unchecked casts suppressed with `@Suppress("UNCHECKED_CAST")` |
+| `openapi/validation/http4k/validator/.../ResponseJsonBodyValidator.kt` | 28 | `rawResponse as ResponseWithHeadersAdapter` — no guard clause |
 
-#### HIGH — Null assertion failures
+Note: The unchecked casts in `JsonExtensions.kt` and `AvroGenericRecordExtensions.kt` are safe by design — they run after schema/JWT validation guarantees field types. Documented in module READMEs.
+
+#### MEDIUM — Null assertion failures
 
 | File | Line | Issue |
 |------|------|-------|
 | `logger/core/.../Trie.kt` | 50, 66, 105 | `node[element]!!` and `node!!.containsKey(element)` — unsafe in concurrent access from logger |
 | `messaging/domain/.../Topic.kt` | 31 | `.namespace!!` NPE if parse fails — converts exception to NPE |
-| `avro/serialization/utils/.../AvroGenericRecordExtensions.kt` | 75 | `getRecordListOrNull(key)?.map(...)!!` — NPE instead of graceful handling |
 
 #### MEDIUM — TODO indicating incomplete feature
 
@@ -249,8 +245,7 @@ All internal dependencies are `1.0.0-SNAPSHOT`. Two builds on different days may
 
 | # | Project | Issue |
 |---|---------|-------|
-| 7 | swissknife | Add null guards to unsafe type casts in JsonExtensions and AvroGenericRecordExtensions |
-| 8 | swissknife | Guard `!!` operators in Topic.Namespace.parse() and Trie |
+| 7 | swissknife | Guard `!!` operators in Topic.Namespace.parse() and Trie |
 | 9 | pillar | Add validation to User (blank names), Access (empty roles), Token (expiry ordering) |
 | 10 | pillar | Add validation to Authentication ACR values |
 
