@@ -104,20 +104,30 @@ Enabled across all 11 projects (`org.gradle.configuration-cache=true`). Palantir
 
 **Jib caveat**: `jibDockerBuild` tasks fail at runtime with configuration cache because Jib serializes `Project`. In modulith-example and element-service-example, `just build` splits into two Gradle invocations — `build` with config cache, then `jibDockerBuild`/`containerBasedServiceTest` with `--no-configuration-cache`.
 
+## Security Scanning (Done)
+
+Docker image vulnerability scanning via Trivy integrated into element-service-example and modulith-example:
+- `sollecitom.security-scan-conventions` plugin creates `securityScan` task
+- Trivy runs as a container via Testcontainers — no host installation needed
+- `assertThatImage(name).hasNoUnacceptableVulnerabilities()` assertion
+- CVE-2025-24970 (netty-handler) fixed via minimum version enforcement
+- Base image switched from Alpine to Ubuntu Noble for faster security patches
+- Container versions centralized in `swissknife/container-versions.properties` with `just update-container-versions`
+
 ## Prioritized TODO List
 
 ### Bugs (from swissknife & pillar report)
 
-1. **pillar: Unsafe email parsing** in `AcmeJwtScheme.kt:72` — ~~uses `single()` on split~~ **Fixed**: now uses `EmailAddress` value class for validation
+1. ~~**pillar: Unsafe email parsing**~~ — **Fixed**: uses `EmailAddress` value class
 2. **swissknife: Null assertion operators** in Topic.Namespace.parse() and Trie — `!!` can NPE
-4. **pillar: Missing domain validation** — User (blank names), Access (empty roles), Token (expiry ordering), Authentication ACR values
+3. **pillar: Missing domain validation** — User (blank names), Access (empty roles), Token (expiry ordering), Authentication ACR values
 
 ### Improvements
 
-5. **Add tests to gradle-plugins** — every project depends on it, breakage is silent
-6. **Add schema validation to acme-schema-catalogue** — catch invalid schemas at build time
-7. **pillar: Add integration tests for `web/api/utils`** — security-sensitive module with no tests
-8. **pillar: Fix dependency direction** — `acme/business/domain` imports from conventions (should be reverse)
-9. **pillar: Resolve Tenant/Customer/Organization confusion** — define clear multi-tenancy model
-10. **Complete the modulith-example** — finish CQRS queries and OpenTelemetry tracing
-11. **Extract repeated patterns** — null-assert, type-cast, serde templates into shared utilities
+4. **Add tests to gradle-plugins** — every project depends on it, breakage is silent
+5. **Add schema validation to acme-schema-catalogue** — catch invalid schemas at build time
+6. **pillar: Add integration tests for `web/api/utils`** — security-sensitive module with no tests
+7. **pillar: Fix dependency direction** — `acme/business/domain` imports from conventions (should be reverse)
+8. **pillar: Resolve Tenant/Customer/Organization confusion** — define clear multi-tenancy model
+9. **Complete the modulith-example** — finish CQRS queries and OpenTelemetry tracing
+10. **Extract repeated patterns** — null-assert, type-cast, serde templates into shared utilities

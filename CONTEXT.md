@@ -78,9 +78,20 @@ Conventions are registered as proper Gradle plugins with IDs:
 | `sollecitom.maven-publish-conventions` | Maven publication setup |
 | `sollecitom.jib-docker-build-conventions` | Jib Docker image build |
 | `sollecitom.container-based-service-test-conventions` | Container-based service tests |
+| `sollecitom.security-scan-conventions` | Docker image vulnerability scanning via Trivy |
 | `sollecitom.kotlin-conventions` | Kotlin compiler options (JVM 25, context parameters, progressive) |
+| `sollecitom.kotlin-library-conventions` | Composite: kotlin-jvm + java-library + idea + test + minimum-dependency-version + repositories + Java toolchain |
 
-Consumers apply via `apply(plugin = "sollecitom.xyz")`. The `buildscript { classpath }` block is kept for utility class access (`RepositoryConfiguration`, `Plugins`, `MinimumDependencyVersion`).
+Submodules apply `plugins { id("sollecitom.kotlin-library-conventions") }`. No `buildSrc` or `allprojects` — each module is self-contained.
+
+## Security Scanning
+
+Docker images built by Jib are scanned for vulnerabilities using Trivy (via Testcontainers). The `securityScan` task runs after `jibDockerBuild` in element-service-example and modulith-example.
+
+- Trivy version and container image versions are managed in `swissknife/container-versions.properties`
+- Update with `just update-container-versions` in swissknife
+- Suppress accepted CVEs in `.trivyignore` per project
+- Base Docker image: `eclipse-temurin:25-jre-noble` (Ubuntu Noble — faster security patches than Alpine)
 
 ## Architecture Patterns
 
