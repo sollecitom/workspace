@@ -12,11 +12,11 @@ This context means some common concerns (e.g., SNAPSHOT versioning, BOM modules,
 |---------|-------|------|-------|------|-----------|------------|---------|
 | element-service-example | A | A | A | A- | A | A+ | **A** |
 | modulith-example | A | A | B+ | A- | A | A+ | **A-** |
-| swissknife | A | A | B+ | B+ | A | A+ | **A-** |
-| pillar | A | A | B+ | B | A | A | **A-** |
+| swissknife | A | A | B+ | A | A | A+ | **A** |
+| pillar | A | A | B+ | A- | A | A | **A-** |
 | backend-skeleton | A+ | N/A | B | A | A | A | **B+** |
 | examples | A | B | A- | B+ | A | B | **B** |
-| gradle-plugins | A | B+ | F | C+ | A | A | **B-** |
+| gradle-plugins | A | B+ | F | B+ | A | A | **B** |
 | acme-schema-catalogue | A | B | F | C | A | A | **B-** |
 | tools | A | B+ | F | C | A | A | **C+** |
 | facts | A | N/A | D | A- | A | B+ | **C+** |
@@ -32,7 +32,7 @@ This context means some common concerns (e.g., SNAPSHOT versioning, BOM modules,
 
 | Issue | Affected Projects | Impact |
 |-------|-------------------|--------|
-| Documentation gaps | gradle-plugins, tools | Onboarding difficulty for future-self and AI agents (swissknife and pillar now documented) |
+| Documentation gaps | tools | Onboarding difficulty for future-self and AI agents (swissknife, pillar, and gradle-plugins now documented with KDoc, READMEs, and CONTEXT.md) |
 | Zero tests | gradle-plugins, acme-schema-catalogue, tools | Silent regressions (swissknife and pillar test gaps addressed) |
 | No distributed tracing | modulith-example, element-service-example | Observability gap |
 
@@ -60,14 +60,15 @@ Gradle-plugins now registers proper plugin IDs via `gradlePlugin { plugins { } }
 - All inter-project dependencies use `includeBuild` (swissknife, pillar, acme-schema-catalogue)
 - Configuration cache enabled across all projects
 
-## Documentation (Mostly Done)
+## Documentation (Done)
 
-- Swissknife: CONTEXT.md + ~90 module READMEs added
-- Pillar: CONTEXT.md + 36 module READMEs added, domain model documented (Tenant, Customer, Organization, User, Actor, Access)
-- Workspace root: CONTEXT.md added
+- **Swissknife**: CONTEXT.md + ~94 module READMEs + KDoc across ~210 source files
+- **Pillar**: CONTEXT.md + 36 module READMEs + KDoc across ~65 source files (domain model documented)
+- **Gradle-plugins**: KDoc across all 16 convention plugin and utility files
+- **Workspace root**: CONTEXT.md added
 
 ### Remaining
-- Add CONTEXT.md to gradle-plugins, tools, and other projects
+- Add CONTEXT.md to tools and other smaller projects
 - Document architecture decision records (ADRs) for non-obvious choices (why Avro for some schemas, JSON for others; why Pulsar over NATS; why hexagonal)
 
 ## `update-workspace` Java Version Handling
