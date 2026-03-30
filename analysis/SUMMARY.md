@@ -12,8 +12,8 @@ This context means some common concerns (e.g., SNAPSHOT versioning, BOM modules,
 |---------|-------|------|-------|------|-----------|------------|---------|
 | element-service-example | A | A | A | A- | A | A+ | **A** |
 | modulith-example | A | A | B+ | A- | A | A+ | **A-** |
-| swissknife | A | A | B+ | D+ | A | A+ | **B+** |
-| pillar | A | A | B+ | D | A | A | **B+** |
+| swissknife | A | A | B+ | B+ | A | A+ | **A-** |
+| pillar | A | A | B+ | B | A | A | **A-** |
 | backend-skeleton | A+ | N/A | B | A | A | A | **B+** |
 | examples | A | B | A- | B+ | A | B | **B** |
 | gradle-plugins | A | B+ | F | C+ | A | A | **B-** |
@@ -32,7 +32,7 @@ This context means some common concerns (e.g., SNAPSHOT versioning, BOM modules,
 
 | Issue | Affected Projects | Impact |
 |-------|-------------------|--------|
-| Documentation gaps | swissknife, pillar, gradle-plugins, tools | Onboarding difficulty for future-self and AI agents |
+| Documentation gaps | gradle-plugins, tools | Onboarding difficulty for future-self and AI agents (swissknife and pillar now documented) |
 | Zero tests | gradle-plugins, acme-schema-catalogue, tools | Silent regressions (swissknife and pillar test gaps addressed) |
 | No distributed tracing | modulith-example, element-service-example | Observability gap |
 
@@ -60,19 +60,14 @@ Gradle-plugins now registers proper plugin IDs via `gradlePlugin { plugins { } }
 - All inter-project dependencies use `includeBuild` (swissknife, pillar, acme-schema-catalogue)
 - Configuration cache enabled across all projects
 
-## Documentation Gaps
+## Documentation (Mostly Done)
 
-Documentation matters even in a personal workspace for two reasons:
+- Swissknife: CONTEXT.md + ~90 module READMEs added
+- Pillar: CONTEXT.md + 36 module READMEs added, domain model documented (Tenant, Customer, Organization, User, Actor, Access)
+- Workspace root: CONTEXT.md added
 
-1. **Future-self** — modules like swissknife (98 modules, 3-line README) and pillar (36 modules, 2-line README) will become harder to navigate as they grow. Domain concepts (Tenant, Customer, Actor, Facts) need explanation.
-
-2. **AI agent context** — AI coding assistants (Claude, Copilot, etc.) operate far more effectively when projects provide clear context: what a module does, why it exists, what patterns it follows, and what constraints apply. Without this, agents must reverse-engineer intent from code, which is slow and error-prone.
-
-### Recommended actions
-
-- Add a `CLAUDE.md` or `CONTEXT.md` to each project root explaining purpose, architecture, key patterns, and constraints
-- Add module-level READMEs to swissknife and pillar (even one-liners per module help agents navigate)
-- Document the Acme domain model (what is a Tenant, Customer, Actor?) — this is domain knowledge that can't be inferred from code
+### Remaining
+- Add CONTEXT.md to gradle-plugins, tools, and other projects
 - Document architecture decision records (ADRs) for non-obvious choices (why Avro for some schemas, JSON for others; why Pulsar over NATS; why hexagonal)
 
 ## `update-workspace` Java Version Handling
@@ -108,9 +103,21 @@ Enabled across all 11 projects (`org.gradle.configuration-cache=true`). Palantir
 
 **Jib caveat**: `jibDockerBuild` tasks fail at runtime with configuration cache because Jib serializes `Project`. In modulith-example and element-service-example, `just build` splits into two Gradle invocations — `build` with config cache, then `jibDockerBuild`/`containerBasedServiceTest` with `--no-configuration-cache`.
 
-## Top 5 High-Impact Improvements
+## Prioritized TODO List
 
-1. **Add tests to gradle-plugins** — every project depends on it, breakage is silent
-3. **Add schema validation to acme-schema-catalogue** — catch invalid schemas at build time instead of at runtime
-4. **Improve documentation for AI agent context** — add CONTEXT.md / CLAUDE.md files and module READMEs to swissknife and pillar
-5. **Complete the modulith-example** — finish CQRS queries and OpenTelemetry tracing to make it a complete reference architecture
+### Bugs (from swissknife & pillar report)
+
+1. **pillar: Unsafe email parsing** in `AcmeJwtScheme.kt:72` — ~~uses `single()` on split~~ **Fixed**: now uses `EmailAddress` value class for validation
+2. **swissknife: Unsafe type casts** in JsonExtensions and AvroGenericRecordExtensions — unchecked casts throw ClassCastException on wrong input
+3. **swissknife: Null assertion operators** in Topic.Namespace.parse() and Trie — `!!` can NPE
+4. **pillar: Missing domain validation** — User (blank names), Access (empty roles), Token (expiry ordering), Authentication ACR values
+
+### Improvements
+
+5. **Add tests to gradle-plugins** — every project depends on it, breakage is silent
+6. **Add schema validation to acme-schema-catalogue** — catch invalid schemas at build time
+7. **pillar: Add integration tests for `web/api/utils`** — security-sensitive module with no tests
+8. **pillar: Fix dependency direction** — `acme/business/domain` imports from conventions (should be reverse)
+9. **pillar: Resolve Tenant/Customer/Organization confusion** — define clear multi-tenancy model
+10. **Complete the modulith-example** — finish CQRS queries and OpenTelemetry tracing
+11. **Extract repeated patterns** — null-assert, type-cast, serde templates into shared utilities

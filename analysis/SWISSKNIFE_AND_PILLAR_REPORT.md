@@ -7,7 +7,7 @@
 | Purpose | General-purpose Kotlin libraries | Domain-specific / company-specific libraries |
 | Modules | ~90 | ~36 |
 | Modules without tests | 6 (7%) | 12 (33%) |
-| Critical issues | 6 | 3 |
+| Critical issues | 6 | 2 |
 
 ---
 
@@ -50,17 +50,9 @@ Multiple locations with unchecked casts that will throw ClassCastException on wr
 
 This filter is **early WIP and unused**. Known issues (hardcoded `Example.tenant`, `Customer.isTest=false`, missing tenant resolver) are expected for unfinished code and not actionable until the filter is completed.
 
-#### HIGH — Unsafe email parsing in JWT
+#### ~~HIGH — Unsafe email parsing in JWT~~ **Fixed**
 
-**File**: `jwt/domain/.../AcmeJwtScheme.kt:72`
-
-```kotlin
-emailAddress.split("@").drop(1).single().removeFromLast(".")
-```
-
-- `single()` throws if there are 0 or 2+ `@` symbols (malformed email)
-- `removeFromLast()` fails if there's no `.` in domain
-- No validation or error handling
+Now uses `EmailAddress` value class from swissknife which validates email format (must contain `@`, must have `.` after `@`). Organization name extracted via `substringAfter`/`substringBeforeLast` instead of `split().single()`.
 
 #### MEDIUM — Missing validation in User.fullName
 
@@ -251,7 +243,7 @@ All internal dependencies are `1.0.0-SNAPSHOT`. Two builds on different days may
 
 | # | Project | Issue | File |
 |---|---------|-------|------|
-| 1 | pillar | Unsafe email parsing | `AcmeJwtScheme.kt:72` |
+| ~~1~~ | ~~pillar~~ | ~~Unsafe email parsing~~ | **Fixed** — uses `EmailAddress` value class |
 
 ### Short-term (correctness and safety)
 
