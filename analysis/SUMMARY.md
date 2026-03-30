@@ -12,8 +12,8 @@ This context means some common concerns (e.g., SNAPSHOT versioning, BOM modules,
 |---------|-------|------|-------|------|-----------|------------|---------|
 | element-service-example | A | A | A | A- | A | A+ | **A** |
 | modulith-example | A | A | B+ | A- | A | A+ | **A-** |
-| swissknife | A | A | B- | D+ | A | A+ | **B+** |
-| pillar | A | A | A- | D | A | A | **B+** |
+| swissknife | A | A | B+ | D+ | A | A+ | **B+** |
+| pillar | A | A | B+ | D | A | A | **B+** |
 | backend-skeleton | A+ | N/A | B | A | A | A | **B+** |
 | examples | A | B | A- | B+ | A | B | **B** |
 | gradle-plugins | A | B+ | F | C+ | A | A | **B-** |
@@ -22,7 +22,7 @@ This context means some common concerns (e.g., SNAPSHOT versioning, BOM modules,
 | facts | A | N/A | D | A- | A | B+ | **C+** |
 
 ## Cross-Cutting Strengths
-- All projects on Gradle 9.4.0 and Kotlin 2.3.10 (latest)
+- All projects on Gradle 9.4.1 and Kotlin 2.3.20 (latest)
 - Consistent build conventions across the workspace
 - Strong DDD and hexagonal architecture patterns
 - Modern Kotlin usage (value classes, sealed hierarchies, coroutines, context parameters)
@@ -33,7 +33,7 @@ This context means some common concerns (e.g., SNAPSHOT versioning, BOM modules,
 | Issue | Affected Projects | Impact |
 |-------|-------------------|--------|
 | Documentation gaps | swissknife, pillar, gradle-plugins, tools | Onboarding difficulty for future-self and AI agents |
-| Zero tests | gradle-plugins, acme-schema-catalogue, tools | Silent regressions |
+| Zero tests | gradle-plugins, acme-schema-catalogue, tools | Silent regressions (swissknife and pillar test gaps addressed) |
 | No distributed tracing | modulith-example, element-service-example | Observability gap |
 
 ## gradle-plugins: Proper Plugins (Done)
@@ -54,10 +54,11 @@ Gradle-plugins now registers proper plugin IDs via `gradlePlugin { plugins { } }
 | `sollecitom.kotlin-conventions` | `KotlinTaskConventions` |
 
 ### Current state
-- Plugin IDs are registered and published to mavenLocal
-- All consumers migrated from `apply<ClassName>()` to `apply(plugin = "sollecitom.xyz")`
-- All consumers use `includeBuild` for gradle-plugins, swissknife, pillar, and acme-schema-catalogue — no `publishToMavenLocal` needed for builds
-- `buildscript { classpath }` is kept for utility class access (`RepositoryConfiguration`, `Plugins`, etc.)
+- Plugin IDs are registered, including composite `sollecitom.kotlin-library-conventions`
+- All consumers use `pluginManagement { includeBuild("../gradle-plugins") }` — no `buildSrc` or `publishToMavenLocal` needed
+- All `allprojects`/`subprojects` blocks removed — each submodule declares its own `plugins { id("sollecitom.kotlin-library-conventions") }`
+- All inter-project dependencies use `includeBuild` (swissknife, pillar, acme-schema-catalogue)
+- Configuration cache enabled across all projects
 
 ## Documentation Gaps
 
