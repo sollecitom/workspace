@@ -35,7 +35,7 @@ update-all:
     just update-dependencies && just update-gradle
 
 # Workspace operations
-@update-workspace:
+update-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
     start_dir="$(pwd)"
@@ -125,7 +125,7 @@ update-all:
     echo ""
     echo "✓ All modules updated successfully!"
 
-@pull-workspace:
+pull-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
     start_dir="$(pwd)"
@@ -144,7 +144,7 @@ update-all:
     echo ""
     echo "✓ All modules pulled successfully!"
 
-@reset-workspace:
+reset-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
     start_dir="$(pwd)"
@@ -162,7 +162,7 @@ update-all:
     echo ""
     echo "✓ All modules reset successfully!"
 
-@push-workspace:
+push-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
     start_dir="$(pwd)"
@@ -179,7 +179,7 @@ update-all:
     echo ""
     echo "✓ All modules pushed successfully!"
 
-@build-and-publish-workspace:
+build-and-publish-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
     start_dir="$(pwd)"
@@ -197,7 +197,7 @@ update-all:
     echo ""
     echo "✓ All modules built and published successfully!"
 
-@rebuild-workspace:
+rebuild-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
     start_dir="$(pwd)"
@@ -214,7 +214,7 @@ update-all:
     echo ""
     echo "✓ All modules rebuilt successfully!"
 
-@build-workspace:
+build-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
     start_dir="$(pwd)"
@@ -231,7 +231,7 @@ update-all:
     echo ""
     echo "✓ All modules built successfully!"
 
-@reinstall-workspace:
+reinstall-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
     start_dir="$(pwd)"
