@@ -236,17 +236,29 @@ reinstall-workspace:
     set -euo pipefail
     start_dir="$(pwd)"
     trap 'cd "$start_dir"' EXIT
+
+    # Phase 1: Clone all projects (so includeBuild references resolve)
     for module in {{all_modules}}; do
         echo ""
         echo "========================================"
-        echo "Reinstalling $module..."
+        echo "Cloning $module..."
         echo "========================================"
         rm -rf "$start_dir/$module"
         cd "$start_dir"
         git clone "git@github.com:sollecitom/$module.git"
+        echo "✓ $module cloned"
+    done
+
+    # Phase 2: Build in dependency order (all sibling dirs now exist)
+    for module in {{all_modules}}; do
+        echo ""
+        echo "========================================"
+        echo "Building $module..."
+        echo "========================================"
         cd "$start_dir/$module"
         just build
-        echo "✓ $module reinstalled successfully"
+        echo "✓ $module built successfully"
     done
+
     echo ""
     echo "✓ All modules reinstalled successfully!"
