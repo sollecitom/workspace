@@ -38,6 +38,9 @@ update-all:
     set -euo pipefail
     start_dir="$(pwd)"
     trap 'cd "$start_dir"' EXIT
+    summary_file=$(mktemp)
+    trap 'cd "$start_dir"; rm -f "$summary_file"' EXIT
+
     for module in {{all_modules}}; do
         echo ""
         echo "========================================"
@@ -45,11 +48,78 @@ update-all:
         echo "========================================"
         cd "$start_dir/$module"
         git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
+
+        # Snapshot versions before update
+        toml="gradle/libs.versions.toml"
+        before=""
+        if [ -f "$toml" ]; then
+            before=$(mktemp)
+            cp "$toml" "$before"
+        fi
+
         just pull
         just update-all
         just build
+
+        # Diff versions after update
+        if [ -n "$before" ] && [ -f "$toml" ]; then
+            changes=$(diff "$before" "$toml" | grep "^[<>]" | grep -v "^[<>] #" || true)
+            if [ -n "$changes" ]; then
+                echo "$module" >> "$summary_file"
+                # Parse old and new versions
+                diff "$before" "$toml" | while IFS= read -r line; do
+                    case "$line" in
+                        "< "*)
+                            key=$(echo "${line#< }" | cut -d= -f1 | xargs)
+                            old_val=$(echo "${line#< }" | cut -d= -f2- | xargs | tr -d '"')
+                            # Find corresponding new value
+                            new_line=$(grep "^${key} *=" "$toml" 2>/dev/null || true)
+                            if [ -n "$new_line" ]; then
+                                new_val=$(echo "$new_line" | cut -d= -f2- | xargs | tr -d '"')
+                                if [ "$old_val" != "$new_val" ]; then
+                                    echo "  $key: $old_val → $new_val" >> "$summary_file"
+                                fi
+                            else
+                                echo "  $key: $old_val (removed)" >> "$summary_file"
+                            fi
+                            ;;
+                        "> "*)
+                            key=$(echo "${line#> }" | cut -d= -f1 | xargs)
+                            # Only report if it's a new entry (not already handled as a change)
+                            if [ -n "$before" ] && ! grep -q "^${key} *=" "$before" 2>/dev/null; then
+                                new_val=$(echo "${line#> }" | cut -d= -f2- | xargs | tr -d '"')
+                                echo "  $key: (new) $new_val" >> "$summary_file"
+                            fi
+                            ;;
+                    esac
+                done
+            fi
+            rm -f "$before"
+        fi
+
         echo "✓ $module updated successfully"
     done
+
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════════════════════"
+    echo "║ UPDATE SUMMARY"
+    echo "╠══════════════════════════════════════════════════════════════════════════════"
+    if [ -s "$summary_file" ]; then
+        echo "║"
+        while IFS= read -r line; do
+            if [[ "$line" != " "* ]]; then
+                echo "║ ▸ $line"
+            else
+                echo "║  $line"
+            fi
+        done < "$summary_file"
+        echo "║"
+    else
+        echo "║"
+        echo "║  No dependency changes detected."
+        echo "║"
+    fi
+    echo "╚══════════════════════════════════════════════════════════════════════════════"
     echo ""
     echo "✓ All modules updated successfully!"
 
