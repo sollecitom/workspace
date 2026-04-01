@@ -4,42 +4,21 @@ set quiet
 
 # Project modules (order matters: dependencies first)
 publishable := "gradle-plugins acme-schema-catalogue swissknife pillar"
-non_publishable := "tools examples facts backend-skeleton modulith-example element-service-example"
+non_publishable := "tools examples facts backend-skeleton modulith-example element-service-example lattice"
 all_modules := publishable + " " + non_publishable
 
-# Git operations
-reset-all:
-    git fetch origin && git reset --hard origin/main && git clean -f -d
-
+# Git operations (workspace repo only — for the justfile, CONTEXT.md, analysis files)
 push:
     git add -A && (git diff --quiet HEAD || git commit -am "WIP") && git push origin main
 
 pull:
     git pull
 
-# Build operations
-build:
-    ./gradlew build
-
-rebuild:
-    ./gradlew --refresh-dependencies --rerun-tasks clean build
-
-# Dependency updates
-update-dependencies:
-    ./gradlew versionCatalogUpdate
-
-update-gradle:
-    ./gradlew wrapper --gradle-version latest --distribution-type all
-
-update-all:
-    just update-dependencies && just update-gradle
-
 # Workspace operations
 update-workspace:
     #!/usr/bin/env bash
     set -euo pipefail
     start_dir="$(pwd)"
-    trap 'cd "$start_dir"' EXIT
     summary_file=$(mktemp)
     trap 'cd "$start_dir"; rm -f "$summary_file"' EXIT
 
