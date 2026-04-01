@@ -1,5 +1,7 @@
 #!/usr/bin/env just --justfile
 
+set quiet
+
 # Project modules (order matters: dependencies first)
 publishable := "gradle-plugins acme-schema-catalogue swissknife pillar"
 non_publishable := "tools examples facts backend-skeleton modulith-example element-service-example"
