@@ -10,13 +10,13 @@ A way to manage multiple projects in a centralised way.
 
 ### (Re-)Install Everything
 
-`just reinstall workspace`
+`just reinstall-workspace`
 
 ### Pull/Push Everything
 
-`just pull workspace` (or push)
+`just pull-workspace` (or push)
 
 ### Update Dependencies and Rebuild/Publish Everything
 
-`just update workspace`
+`just update-workspace`
 
