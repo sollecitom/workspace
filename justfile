@@ -30,52 +30,16 @@ update-workspace:
         cd "$start_dir/$module"
         git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
 
-        # Snapshot versions before update
-        toml="gradle/libs.versions.toml"
-        before=""
-        if [ -f "$toml" ]; then
-            before=$(mktemp)
-            cp "$toml" "$before"
-        fi
-
         just pull
         just update-all
         just build
-
-        # Diff versions after update
-        if [ -n "$before" ] && [ -f "$toml" ]; then
-            changes=$(diff "$before" "$toml" | grep "^[<>]" | grep -v "^[<>] #" || true)
-            if [ -n "$changes" ]; then
-                echo "$module" >> "$summary_file"
-                # Parse old and new versions
-                diff "$before" "$toml" | while IFS= read -r line; do
-                    case "$line" in
-                        "< "*)
-                            key=$(echo "${line#< }" | cut -d= -f1 | xargs)
-                            old_val=$(echo "${line#< }" | cut -d= -f2- | xargs | tr -d '"')
-                            # Find corresponding new value
-                            new_line=$(grep "^${key} *=" "$toml" 2>/dev/null || true)
-                            if [ -n "$new_line" ]; then
-                                new_val=$(echo "$new_line" | cut -d= -f2- | xargs | tr -d '"')
-                                if [ "$old_val" != "$new_val" ]; then
-                                    echo "  $key: $old_val → $new_val" >> "$summary_file"
-                                fi
-                            else
-                                echo "  $key: $old_val (removed)" >> "$summary_file"
-                            fi
-                            ;;
-                        "> "*)
-                            key=$(echo "${line#> }" | cut -d= -f1 | xargs)
-                            # Only report if it's a new entry (not already handled as a change)
-                            if [ -n "$before" ] && ! grep -q "^${key} *=" "$before" 2>/dev/null; then
-                                new_val=$(echo "${line#> }" | cut -d= -f2- | xargs | tr -d '"')
-                                echo "  $key: (new) $new_val" >> "$summary_file"
-                            fi
-                            ;;
-                    esac
-                done
-            fi
-            rm -f "$before"
+        module_summary=$(./gradlew -q updateSummary 2>/dev/null || true)
+        if [ -n "$module_summary" ]; then
+            echo "$module" >> "$summary_file"
+            while IFS= read -r line; do
+                [ -n "$line" ] || continue
+                printf '  %s\n' "$line" >> "$summary_file"
+            done <<< "$module_summary"
         fi
 
         echo "✓ $module updated successfully"
@@ -97,7 +61,7 @@ update-workspace:
         echo "║"
     else
         echo "║"
-        echo "║  No dependency changes detected."
+        echo "║  No upgrade-related changes detected."
         echo "║"
     fi
     echo "╚══════════════════════════════════════════════════════════════════════════════"
