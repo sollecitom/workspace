@@ -34,6 +34,13 @@ print_header() {
     echo "========================================"
 }
 
+sanitize_gradle_output() {
+    perl -pe '
+        s/\e\][^\a]*(?:\a|\e\\\\)//g;
+        s/\e\[[0-?]*[ -\/]*[@-~]//g;
+    ' | tr -d '\000-\010\013\014\016-\037\177'
+}
+
 case "$command_name" in
     update)
         summary_file=$(mktemp)
@@ -44,7 +51,7 @@ case "$command_name" in
             just pull
             just update-all
             just build
-            module_summary=$(./gradlew -q updateSummary 2>/dev/null || true)
+            module_summary=$(./gradlew -q updateSummary 2>/dev/null | sanitize_gradle_output || true)
             if printf '%s\n' "$module_summary" | grep -q '[^[:space:]]'; then
                 echo "$module" >> "$summary_file"
                 while IFS= read -r line; do
