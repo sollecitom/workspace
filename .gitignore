@@ -19,3 +19,6 @@ tools/
 # Tools
 .nwave/
 .claude/
+
+# Local planning docs
+UPDATE_WORKSPACE_PLAN.md
