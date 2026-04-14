@@ -15,6 +15,15 @@ push:
 pull:
     git pull --rebase origin main
 
+build:
+    @:
+
+rebuild:
+    @:
+
+update-all:
+    @:
+
 # Workspace operations
 update-workspace:
     #!/usr/bin/env bash
