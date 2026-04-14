@@ -25,231 +25,26 @@ update-all:
     @:
 
 # Workspace operations
-update-workspace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    start_dir="$(pwd)"
-    summary_file=$(mktemp)
-    trap 'cd "$start_dir"; rm -f "$summary_file"' EXIT
+@update-workspace:
+    bash ./scripts/workspace.sh update '{{workspace_and_modules}}'
 
-    for module in {{workspace_and_modules}}; do
-        echo ""
-        echo "========================================"
-        echo "Updating $module..."
-        echo "========================================"
-        if [ "$module" = "workspace" ]; then
-            cd "$start_dir"
-        else
-            cd "$start_dir/$module"
-        fi
-        git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
+@pull-workspace:
+    bash ./scripts/workspace.sh pull '{{workspace_and_modules}}'
 
-        just pull
-        just update-all
-        just build
-        module_summary=$(./gradlew -q updateSummary 2>/dev/null || true)
-        echo "$module" >> "$summary_file"
-        if printf '%s\n' "$module_summary" | grep -q '[^[:space:]]'; then
-            while IFS= read -r line; do
-                [ -n "$line" ] || continue
-                printf '  %s\n' "$line" >> "$summary_file"
-            done <<< "$module_summary"
-        else
-            echo "  No dependencies were updated." >> "$summary_file"
-        fi
+@reset-workspace:
+    bash ./scripts/workspace.sh reset '{{workspace_and_modules}}'
 
-        echo "✓ $module updated successfully"
-    done
+@push-workspace:
+    bash ./scripts/workspace.sh push '{{workspace_and_modules}}'
 
-    echo ""
-    echo "╔══════════════════════════════════════════════════════════════════════════════"
-    echo "║ UPDATE SUMMARY"
-    echo "╠══════════════════════════════════════════════════════════════════════════════"
-    if [ -s "$summary_file" ]; then
-        echo "║"
-        while IFS= read -r line; do
-            if [[ "$line" != " "* ]]; then
-                echo "║ ▸ $line"
-            else
-                echo "║  $line"
-            fi
-        done < "$summary_file"
-        echo "║"
-    else
-        echo "║"
-        echo "║  No upgrade-related changes detected."
-        echo "║"
-    fi
-    echo "╚══════════════════════════════════════════════════════════════════════════════"
-    echo ""
-    echo "✓ All modules updated successfully!"
+@build-and-publish-workspace:
+    bash ./scripts/workspace.sh build-and-publish '{{workspace_and_modules}}' '{{publishable}}'
 
-pull-workspace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    start_dir="$(pwd)"
-    trap 'cd "$start_dir"' EXIT
-    for module in {{workspace_and_modules}}; do
-        echo ""
-        echo "========================================"
-        echo "Pulling $module..."
-        echo "========================================"
-        if [ "$module" = "workspace" ]; then
-            cd "$start_dir"
-        else
-            cd "$start_dir/$module"
-        fi
-        git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
-        just pull
-        just build
-        echo "✓ $module pulled successfully"
-    done
-    echo ""
-    echo "✓ All modules pulled successfully!"
+@rebuild-workspace:
+    bash ./scripts/workspace.sh rebuild '{{workspace_and_modules}}'
 
-reset-workspace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    start_dir="$(pwd)"
-    trap 'cd "$start_dir"' EXIT
-    for module in {{workspace_and_modules}}; do
-        echo ""
-        echo "========================================"
-        echo "Resetting $module..."
-        echo "========================================"
-        if [ "$module" = "workspace" ]; then
-            cd "$start_dir"
-        else
-            cd "$start_dir/$module"
-        fi
-        git clean -fdx && git reset --hard
-        just build
-        echo "✓ $module reset successfully"
-    done
-    echo ""
-    echo "✓ All modules reset successfully!"
+@build-workspace:
+    bash ./scripts/workspace.sh build '{{workspace_and_modules}}'
 
-push-workspace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    start_dir="$(pwd)"
-    trap 'cd "$start_dir"' EXIT
-    for module in {{workspace_and_modules}}; do
-        echo ""
-        echo "========================================"
-        echo "Pushing $module..."
-        echo "========================================"
-        if [ "$module" = "workspace" ]; then
-            cd "$start_dir"
-        else
-            cd "$start_dir/$module"
-        fi
-        just push
-        echo "✓ $module pushed successfully"
-    done
-    echo ""
-    echo "✓ All modules pushed successfully!"
-
-build-and-publish-workspace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    start_dir="$(pwd)"
-    trap 'cd "$start_dir"' EXIT
-    for module in {{workspace_and_modules}}; do
-        echo ""
-        echo "========================================"
-        echo "Building $module..."
-        echo "========================================"
-        if [ "$module" = "workspace" ]; then
-            cd "$start_dir"
-        else
-            cd "$start_dir/$module"
-        fi
-        just build
-        [[ " {{publishable}} " =~ " $module " ]] && just publish || true
-        echo "✓ $module built and published successfully"
-    done
-    echo ""
-    echo "✓ All modules built and published successfully!"
-
-rebuild-workspace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    start_dir="$(pwd)"
-    trap 'cd "$start_dir"' EXIT
-    for module in {{workspace_and_modules}}; do
-        echo ""
-        echo "========================================"
-        echo "Rebuilding $module..."
-        echo "========================================"
-        if [ "$module" = "workspace" ]; then
-            cd "$start_dir"
-        else
-            cd "$start_dir/$module"
-        fi
-        just rebuild
-        echo "✓ $module rebuilt successfully"
-    done
-    echo ""
-    echo "✓ All modules rebuilt successfully!"
-
-build-workspace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    start_dir="$(pwd)"
-    trap 'cd "$start_dir"' EXIT
-    for module in {{workspace_and_modules}}; do
-        echo ""
-        echo "========================================"
-        echo "Building $module..."
-        echo "========================================"
-        if [ "$module" = "workspace" ]; then
-            cd "$start_dir"
-        else
-            cd "$start_dir/$module"
-        fi
-        just build
-        echo "✓ $module built successfully"
-    done
-    echo ""
-    echo "✓ All modules built successfully!"
-
-reinstall-workspace:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    start_dir="$(pwd)"
-    trap 'cd "$start_dir"' EXIT
-
-    echo ""
-    echo "========================================"
-    echo "Building workspace..."
-    echo "========================================"
-    cd "$start_dir"
-    just build
-    echo "✓ workspace built successfully"
-
-    # Phase 1: Clone all projects (so includeBuild references resolve)
-    for module in {{all_modules}}; do
-        echo ""
-        echo "========================================"
-        echo "Cloning $module..."
-        echo "========================================"
-        rm -rf "$start_dir/$module"
-        cd "$start_dir"
-        git clone "git@github.com:sollecitom/$module.git"
-        echo "✓ $module cloned"
-    done
-
-    # Phase 2: Build in dependency order (all sibling dirs now exist)
-    for module in {{all_modules}}; do
-        echo ""
-        echo "========================================"
-        echo "Building $module..."
-        echo "========================================"
-        cd "$start_dir/$module"
-        just build
-        echo "✓ $module built successfully"
-    done
-
-    echo ""
-    echo "✓ All modules reinstalled successfully!"
+@reinstall-workspace:
+    bash ./scripts/workspace.sh reinstall '{{all_modules}}'
