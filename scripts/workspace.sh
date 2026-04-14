@@ -191,11 +191,21 @@ resolve_tag_for_major() {
 
 resolve_image_digest() {
     local image="$1"
+    local target_architecture="amd64"
+    local current_os
+    local current_architecture
+
+    current_os=$(uname -s)
+    current_architecture=$(uname -m)
+
+    if [ "$current_os" = "Darwin" ] && { [ "$current_architecture" = "arm64" ] || [ "$current_architecture" = "aarch64" ]; }; then
+        target_architecture="arm64"
+    fi
 
     docker buildx imagetools inspect "$image" --raw \
         | jq -r '
             .manifests[]
-            | select(.platform.os == "linux" and .platform.architecture == "amd64")
+            | select(.platform.os == "linux" and .platform.architecture == "'"$target_architecture"'")
             | .digest
         ' \
         | awk 'NR == 1 { print; exit }'
