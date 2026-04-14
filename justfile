@@ -6,6 +6,7 @@ set quiet
 publishable := "gradle-plugins acme-schema-catalogue swissknife pillar"
 non_publishable := "tools examples facts backend-skeleton modulith-example element-service-example lattice"
 all_modules := publishable + " " + non_publishable
+workspace_and_modules := "workspace " + all_modules
 
 # Git operations (workspace repo only — for the justfile, CONTEXT.md, analysis files)
 push:
@@ -22,24 +23,30 @@ update-workspace:
     summary_file=$(mktemp)
     trap 'cd "$start_dir"; rm -f "$summary_file"' EXIT
 
-    for module in {{all_modules}}; do
+    for module in {{workspace_and_modules}}; do
         echo ""
         echo "========================================"
         echo "Updating $module..."
         echo "========================================"
-        cd "$start_dir/$module"
+        if [ "$module" = "workspace" ]; then
+            cd "$start_dir"
+        else
+            cd "$start_dir/$module"
+        fi
         git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
 
         just pull
         just update-all
         just build
         module_summary=$(./gradlew -q updateSummary 2>/dev/null || true)
-        if [ -n "$module_summary" ]; then
-            echo "$module" >> "$summary_file"
+        echo "$module" >> "$summary_file"
+        if printf '%s\n' "$module_summary" | grep -q '[^[:space:]]'; then
             while IFS= read -r line; do
                 [ -n "$line" ] || continue
                 printf '  %s\n' "$line" >> "$summary_file"
             done <<< "$module_summary"
+        else
+            echo "  No dependencies were updated." >> "$summary_file"
         fi
 
         echo "✓ $module updated successfully"
@@ -73,12 +80,16 @@ pull-workspace:
     set -euo pipefail
     start_dir="$(pwd)"
     trap 'cd "$start_dir"' EXIT
-    for module in {{all_modules}}; do
+    for module in {{workspace_and_modules}}; do
         echo ""
         echo "========================================"
         echo "Pulling $module..."
         echo "========================================"
-        cd "$start_dir/$module"
+        if [ "$module" = "workspace" ]; then
+            cd "$start_dir"
+        else
+            cd "$start_dir/$module"
+        fi
         git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
         just pull
         just build
@@ -92,12 +103,16 @@ reset-workspace:
     set -euo pipefail
     start_dir="$(pwd)"
     trap 'cd "$start_dir"' EXIT
-    for module in {{all_modules}}; do
+    for module in {{workspace_and_modules}}; do
         echo ""
         echo "========================================"
         echo "Resetting $module..."
         echo "========================================"
-        cd "$start_dir/$module"
+        if [ "$module" = "workspace" ]; then
+            cd "$start_dir"
+        else
+            cd "$start_dir/$module"
+        fi
         git clean -fdx && git reset --hard
         just build
         echo "✓ $module reset successfully"
@@ -110,12 +125,16 @@ push-workspace:
     set -euo pipefail
     start_dir="$(pwd)"
     trap 'cd "$start_dir"' EXIT
-    for module in {{all_modules}}; do
+    for module in {{workspace_and_modules}}; do
         echo ""
         echo "========================================"
         echo "Pushing $module..."
         echo "========================================"
-        cd "$start_dir/$module"
+        if [ "$module" = "workspace" ]; then
+            cd "$start_dir"
+        else
+            cd "$start_dir/$module"
+        fi
         just push
         echo "✓ $module pushed successfully"
     done
@@ -127,12 +146,16 @@ build-and-publish-workspace:
     set -euo pipefail
     start_dir="$(pwd)"
     trap 'cd "$start_dir"' EXIT
-    for module in {{all_modules}}; do
+    for module in {{workspace_and_modules}}; do
         echo ""
         echo "========================================"
         echo "Building $module..."
         echo "========================================"
-        cd "$start_dir/$module"
+        if [ "$module" = "workspace" ]; then
+            cd "$start_dir"
+        else
+            cd "$start_dir/$module"
+        fi
         just build
         [[ " {{publishable}} " =~ " $module " ]] && just publish || true
         echo "✓ $module built and published successfully"
@@ -145,12 +168,16 @@ rebuild-workspace:
     set -euo pipefail
     start_dir="$(pwd)"
     trap 'cd "$start_dir"' EXIT
-    for module in {{all_modules}}; do
+    for module in {{workspace_and_modules}}; do
         echo ""
         echo "========================================"
         echo "Rebuilding $module..."
         echo "========================================"
-        cd "$start_dir/$module"
+        if [ "$module" = "workspace" ]; then
+            cd "$start_dir"
+        else
+            cd "$start_dir/$module"
+        fi
         just rebuild
         echo "✓ $module rebuilt successfully"
     done
@@ -162,12 +189,16 @@ build-workspace:
     set -euo pipefail
     start_dir="$(pwd)"
     trap 'cd "$start_dir"' EXIT
-    for module in {{all_modules}}; do
+    for module in {{workspace_and_modules}}; do
         echo ""
         echo "========================================"
         echo "Building $module..."
         echo "========================================"
-        cd "$start_dir/$module"
+        if [ "$module" = "workspace" ]; then
+            cd "$start_dir"
+        else
+            cd "$start_dir/$module"
+        fi
         just build
         echo "✓ $module built successfully"
     done
@@ -179,6 +210,14 @@ reinstall-workspace:
     set -euo pipefail
     start_dir="$(pwd)"
     trap 'cd "$start_dir"' EXIT
+
+    echo ""
+    echo "========================================"
+    echo "Building workspace..."
+    echo "========================================"
+    cd "$start_dir"
+    just build
+    echo "✓ workspace built successfully"
 
     # Phase 1: Clone all projects (so includeBuild references resolve)
     for module in {{all_modules}}; do
