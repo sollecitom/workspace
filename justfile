@@ -10,10 +10,10 @@ workspace_and_modules := "workspace " + all_modules
 
 # Git operations (workspace repo only — for the justfile, CONTEXT.md, analysis files)
 push:
-    git add -A && (git diff --quiet HEAD || git commit -am "WIP") && git push origin main
+    git add -A && (git diff --quiet HEAD || git commit -am "WIP") && git pull --rebase origin main && git push origin main
 
 pull:
-    git pull
+    git pull --rebase origin main
 
 # Workspace operations
 update-workspace:
