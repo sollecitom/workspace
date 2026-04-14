@@ -6,11 +6,41 @@ modules="${2:-}"
 publishable_modules="${3:-}"
 start_dir="$(pwd)"
 summary_file=""
+workspace_events_file=""
+base_image_policy_active=0
+base_image_follow_latest=0
+base_image_fallback_allowed=0
+base_image_repository=""
+base_image_variant=""
+base_image_runtime_variant=""
+base_image_current_param=""
+base_image_current_runtime_param=""
+base_image_candidate_param=""
+base_image_candidate_runtime_param=""
+base_image_candidate_tag=""
+base_image_candidate_runtime_tag=""
+base_image_fallback_param=""
+base_image_fallback_runtime_param=""
+base_image_fallback_tag=""
+base_image_fallback_runtime_tag=""
+base_image_latest_major=""
+base_image_target_major=""
+base_image_gradle_backup=""
+base_image_dockerfile_backup=""
 
 cleanup() {
     cd "$start_dir"
     if [ -n "$summary_file" ]; then
         rm -f "$summary_file"
+    fi
+    if [ -n "$workspace_events_file" ]; then
+        rm -f "$workspace_events_file"
+    fi
+    if [ -n "$base_image_gradle_backup" ]; then
+        rm -f "$base_image_gradle_backup"
+    fi
+    if [ -n "$base_image_dockerfile_backup" ]; then
+        rm -f "$base_image_dockerfile_backup"
     fi
 }
 
@@ -41,6 +71,330 @@ sanitize_gradle_output() {
     ' | tr -d '\000-\010\013\014\016-\037\177'
 }
 
+clear_workspace_events() {
+    if [ -n "$workspace_events_file" ]; then
+        rm -f "$workspace_events_file"
+    fi
+}
+
+append_workspace_event() {
+    printf '%s\n' "$1" >> "$workspace_events_file"
+}
+
+reset_base_image_state() {
+    base_image_policy_active=0
+    base_image_follow_latest=0
+    base_image_fallback_allowed=0
+    base_image_repository=""
+    base_image_variant=""
+    base_image_runtime_variant=""
+    base_image_current_param=""
+    base_image_current_runtime_param=""
+    base_image_candidate_param=""
+    base_image_candidate_runtime_param=""
+    base_image_candidate_tag=""
+    base_image_candidate_runtime_tag=""
+    base_image_fallback_param=""
+    base_image_fallback_runtime_param=""
+    base_image_fallback_tag=""
+    base_image_fallback_runtime_tag=""
+    base_image_latest_major=""
+    base_image_target_major=""
+    if [ -n "$base_image_gradle_backup" ]; then
+        rm -f "$base_image_gradle_backup"
+    fi
+    if [ -n "$base_image_dockerfile_backup" ]; then
+        rm -f "$base_image_dockerfile_backup"
+    fi
+    base_image_gradle_backup=""
+    base_image_dockerfile_backup=""
+}
+
+property_value() {
+    local file="$1"
+    local key="$2"
+    awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, "", $0); print $0; exit }' "$file"
+}
+
+set_property_value() {
+    local file="$1"
+    local key="$2"
+    local value="$3"
+    local tmp_file
+    tmp_file=$(mktemp)
+
+    awk -v key="$key" -v value="$value" '
+        BEGIN { replaced = 0 }
+        index($0, key "=") == 1 {
+            print key "=" value
+            replaced = 1
+            next
+        }
+        { print }
+        END {
+            if (!replaced) {
+                print key "=" value
+            }
+        }
+    ' "$file" > "$tmp_file"
+
+    mv "$tmp_file" "$file"
+}
+
+docker_hub_repository_path() {
+    local repository="$1"
+    if [[ "$repository" == */* ]]; then
+        printf '%s\n' "$repository"
+    else
+        printf 'library/%s\n' "$repository"
+    fi
+}
+
+fetch_matching_tags() {
+    local repository="$1"
+    local variant="$2"
+    local repo_path
+    local next_url
+
+    repo_path=$(docker_hub_repository_path "$repository")
+    next_url="https://hub.docker.com/v2/repositories/${repo_path}/tags?page_size=100"
+
+    while [ -n "$next_url" ]; do
+        local response
+        response=$(curl -fsSL "$next_url")
+        printf '%s' "$response" | jq -r --arg variant "$variant" '
+            .results[]
+            | .name
+            | select(test("^[0-9]+-" + ($variant | gsub("\\."; "\\\\.")) + "$"))
+        '
+        next_url=$(printf '%s' "$response" | jq -r '.next // empty')
+    done
+}
+
+resolve_latest_tag() {
+    local repository="$1"
+    local variant="$2"
+
+    fetch_matching_tags "$repository" "$variant" \
+        | awk -F- '{ print $1 " " $0 }' \
+        | sort -nr \
+        | awk 'NR == 1 { print $2 }'
+}
+
+resolve_tag_for_major() {
+    local repository="$1"
+    local variant="$2"
+    local major="$3"
+
+    fetch_matching_tags "$repository" "$variant" | awk -v expected="${major}-${variant}" '$0 == expected { print; exit }'
+}
+
+resolve_image_digest() {
+    local image="$1"
+
+    docker buildx imagetools inspect "$image" --raw \
+        | jq -r '
+            .manifests[]
+            | select(.platform.os == "linux" and .platform.architecture == "amd64")
+            | .digest
+        ' \
+        | awk 'NR == 1 { print; exit }'
+}
+
+resolve_image_reference() {
+    local repository="$1"
+    local tag="$2"
+    local digest
+
+    digest=$(resolve_image_digest "${repository}:${tag}")
+    if [ -z "$digest" ]; then
+        echo "Failed to resolve linux/amd64 digest for ${repository}:${tag}" >&2
+        exit 1
+    fi
+
+    printf '%s:%s@%s\n' "$repository" "$tag" "$digest"
+}
+
+image_tag_from_ref() {
+    local reference="$1"
+    local without_digest
+
+    without_digest="${reference%%@*}"
+    if [ -z "$without_digest" ] || [[ "$without_digest" != *:* ]]; then
+        return 0
+    fi
+
+    printf '%s\n' "${without_digest##*:}"
+}
+
+image_major_from_ref() {
+    local tag
+    tag=$(image_tag_from_ref "$1")
+    if [ -n "$tag" ]; then
+        printf '%s\n' "${tag%%-*}"
+    fi
+}
+
+replace_from_line() {
+    local dockerfile="$1"
+    local line_number="$2"
+    local image="$3"
+    local tmp_file
+
+    tmp_file=$(mktemp)
+    awk -v line_number="$line_number" -v image="$image" '
+        BEGIN { from_count = 0 }
+        /^FROM / {
+            from_count++
+            if (from_count == line_number) {
+                line = $0
+                sub(/^FROM [^ ]+/, "FROM " image, line)
+                print line
+                next
+            }
+        }
+        { print }
+    ' "$dockerfile" > "$tmp_file"
+    mv "$tmp_file" "$dockerfile"
+}
+
+update_dockerfile_base_images() {
+    local builder_image="$1"
+    local runtime_image="$2"
+
+    [ -f Dockerfile ] || return 0
+    replace_from_line Dockerfile 1 "$builder_image"
+    if [ -n "$runtime_image" ]; then
+        replace_from_line Dockerfile 2 "$runtime_image"
+    fi
+}
+
+prepare_base_image_policy() {
+    local current_major
+    local configured_major
+    local latest_tag
+    local target_tag
+    local runtime_target_tag
+
+    reset_base_image_state
+    workspace_events_file="$(pwd)/.update-workspace-events"
+    clear_workspace_events
+
+    [ -f gradle.properties ] || return 0
+
+    base_image_repository=$(property_value gradle.properties dockerBaseImageRepository)
+    base_image_variant=$(property_value gradle.properties dockerBaseImageVariant)
+    configured_major=$(property_value gradle.properties dockerBaseImageMajor)
+    base_image_runtime_variant=$(property_value gradle.properties dockerRuntimeBaseImageVariant)
+
+    if [ -z "$base_image_repository" ] || [ -z "$base_image_variant" ] || [ -z "$configured_major" ]; then
+        return 0
+    fi
+
+    base_image_policy_active=1
+    base_image_current_param=$(property_value gradle.properties dockerBaseImageParam)
+    base_image_current_runtime_param=$(property_value gradle.properties dockerRuntimeBaseImageParam)
+    current_major=$(image_major_from_ref "$base_image_current_param")
+
+    base_image_gradle_backup=$(mktemp)
+    cp gradle.properties "$base_image_gradle_backup"
+
+    if [ -f Dockerfile ]; then
+        base_image_dockerfile_backup=$(mktemp)
+        cp Dockerfile "$base_image_dockerfile_backup"
+    fi
+
+    latest_tag=$(resolve_latest_tag "$base_image_repository" "$base_image_variant")
+    if [ -z "$latest_tag" ]; then
+        echo "Failed to resolve a matching base image tag for ${base_image_repository} (${base_image_variant})" >&2
+        exit 1
+    fi
+
+    base_image_latest_major="${latest_tag%%-*}"
+
+    if [ "$configured_major" = "latest" ]; then
+        base_image_follow_latest=1
+        base_image_target_major="$base_image_latest_major"
+        target_tag="$latest_tag"
+    else
+        base_image_target_major="$configured_major"
+        target_tag=$(resolve_tag_for_major "$base_image_repository" "$base_image_variant" "$base_image_target_major")
+        if [ -z "$target_tag" ]; then
+            echo "Failed to resolve ${base_image_repository}:${base_image_target_major}-${base_image_variant}" >&2
+            exit 1
+        fi
+        if [ -n "$base_image_latest_major" ] && [ "$base_image_latest_major" -gt "$base_image_target_major" ]; then
+            append_workspace_event "Java image pinned: staying on major ${base_image_target_major} while ${base_image_latest_major} is available."
+        fi
+    fi
+
+    base_image_candidate_tag="$target_tag"
+    base_image_candidate_param=$(resolve_image_reference "$base_image_repository" "$target_tag")
+    set_property_value gradle.properties dockerBaseImageParam "$base_image_candidate_param"
+
+    if [ -n "$base_image_runtime_variant" ]; then
+        runtime_target_tag=$(resolve_tag_for_major "$base_image_repository" "$base_image_runtime_variant" "$base_image_target_major")
+        if [ -z "$runtime_target_tag" ]; then
+            echo "Failed to resolve ${base_image_repository}:${base_image_target_major}-${base_image_runtime_variant}" >&2
+            exit 1
+        fi
+        base_image_candidate_runtime_tag="$runtime_target_tag"
+        base_image_candidate_runtime_param=$(resolve_image_reference "$base_image_repository" "$runtime_target_tag")
+        set_property_value gradle.properties dockerRuntimeBaseImageParam "$base_image_candidate_runtime_param"
+        update_dockerfile_base_images "$base_image_candidate_param" "$base_image_candidate_runtime_param"
+    fi
+
+    if [ "$base_image_follow_latest" -eq 1 ] && [ -n "$current_major" ] && [ "$base_image_target_major" -gt "$current_major" ]; then
+        local fallback_tag
+        base_image_fallback_allowed=1
+        fallback_tag=$(resolve_tag_for_major "$base_image_repository" "$base_image_variant" "$current_major")
+        if [ -z "$fallback_tag" ]; then
+            echo "Failed to resolve fallback image ${base_image_repository}:${current_major}-${base_image_variant}" >&2
+            exit 1
+        fi
+        base_image_fallback_tag="$fallback_tag"
+        base_image_fallback_param=$(resolve_image_reference "$base_image_repository" "$fallback_tag")
+
+        if [ -n "$base_image_runtime_variant" ]; then
+            local fallback_runtime_tag
+            fallback_runtime_tag=$(resolve_tag_for_major "$base_image_repository" "$base_image_runtime_variant" "$current_major")
+            if [ -z "$fallback_runtime_tag" ]; then
+                echo "Failed to resolve fallback image ${base_image_repository}:${current_major}-${base_image_runtime_variant}" >&2
+                exit 1
+            fi
+            base_image_fallback_runtime_tag="$fallback_runtime_tag"
+            base_image_fallback_runtime_param=$(resolve_image_reference "$base_image_repository" "$fallback_runtime_tag")
+        fi
+    fi
+}
+
+restore_base_image_files() {
+    if [ -n "$base_image_gradle_backup" ] && [ -f "$base_image_gradle_backup" ]; then
+        cp "$base_image_gradle_backup" gradle.properties
+    fi
+    if [ -n "$base_image_dockerfile_backup" ] && [ -f "$base_image_dockerfile_backup" ]; then
+        cp "$base_image_dockerfile_backup" Dockerfile
+    fi
+}
+
+apply_base_image_fallback() {
+    [ "$base_image_fallback_allowed" -eq 1 ] || return 1
+
+    set_property_value gradle.properties dockerBaseImageParam "$base_image_fallback_param"
+    if [ -n "$base_image_fallback_runtime_param" ]; then
+        set_property_value gradle.properties dockerRuntimeBaseImageParam "$base_image_fallback_runtime_param"
+        update_dockerfile_base_images "$base_image_fallback_param" "$base_image_fallback_runtime_param"
+    fi
+
+    append_workspace_event "Java image fallback: ${base_image_candidate_tag} failed build; kept ${base_image_fallback_tag}."
+}
+
+collect_module_summary() {
+    if [ -x ./gradlew ]; then
+        WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" ./gradlew -q updateSummary 2>/dev/null | sanitize_gradle_output || true
+    fi
+}
+
 case "$command_name" in
     update)
         summary_file=$(mktemp)
@@ -49,9 +403,17 @@ case "$command_name" in
             cd_module "$module"
             git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
             just pull
+            prepare_base_image_policy
             just update-all
-            just build
-            module_summary=$(./gradlew -q updateSummary 2>/dev/null | sanitize_gradle_output || true)
+            if just build; then
+                :
+            elif apply_base_image_fallback; then
+                just build
+            else
+                restore_base_image_files
+                exit 1
+            fi
+            module_summary=$(collect_module_summary)
             if printf '%s\n' "$module_summary" | grep -q '[^[:space:]]'; then
                 echo "$module" >> "$summary_file"
                 while IFS= read -r line; do
@@ -61,6 +423,8 @@ case "$command_name" in
             else
                 echo "$module: No dependencies were updated." >> "$summary_file"
             fi
+            clear_workspace_events
+            reset_base_image_state
             echo "✓ $module updated successfully"
         done
 
