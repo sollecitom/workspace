@@ -46,5 +46,8 @@ update-all:
 @build-workspace:
     bash ./scripts/workspace.sh build '{{workspace_and_modules}}'
 
+@install-workspace:
+    bash ./scripts/workspace.sh install '{{all_modules}}'
+
 @reinstall-workspace:
     bash ./scripts/workspace.sh reinstall '{{all_modules}}'

@@ -462,6 +462,9 @@ case "$command_name" in
         echo "✓ All modules updated successfully!"
         ;;
     pull|reset|push|rebuild|build)
+        if [ "$command_name" = "build" ]; then
+            summary_file=$(mktemp)
+        fi
         for module in $modules; do
             case "$command_name" in
                 pull) print_header "Pulling" "$module" ;;
@@ -489,6 +492,14 @@ case "$command_name" in
                     ;;
                 build)
                     just build
+                    module_summary=$(collect_module_summary)
+                    if printf '%s\n' "$module_summary" | grep -q '[^[:space:]]'; then
+                        echo "$module" >> "$summary_file"
+                        while IFS= read -r line; do
+                            [ -n "$line" ] || continue
+                            printf '  %s\n' "$line" >> "$summary_file"
+                        done <<< "$module_summary"
+                    fi
                     ;;
             esac
             echo "✓ $module ${command_name}ed successfully"
@@ -499,7 +510,29 @@ case "$command_name" in
             reset) echo "✓ All modules reset successfully!" ;;
             push) echo "✓ All modules pushed successfully!" ;;
             rebuild) echo "✓ All modules rebuilt successfully!" ;;
-            build) echo "✓ All modules built successfully!" ;;
+            build)
+                echo "╔══════════════════════════════════════════════════════════════════════════════"
+                echo "║ BUILD SUMMARY"
+                echo "╠══════════════════════════════════════════════════════════════════════════════"
+                if [ -s "$summary_file" ]; then
+                    echo "║"
+                    while IFS= read -r line; do
+                        if [[ "$line" != " "* ]]; then
+                            echo "║ ▸ $line"
+                        else
+                            echo "║  $line"
+                        fi
+                    done < "$summary_file"
+                    echo "║"
+                else
+                    echo "║"
+                    echo "║  No build-triggered dependency changes detected."
+                    echo "║"
+                fi
+                echo "╚══════════════════════════════════════════════════════════════════════════════"
+                echo ""
+                echo "✓ All modules built successfully!"
+                ;;
         esac
         ;;
     build-and-publish)
@@ -513,26 +546,35 @@ case "$command_name" in
         echo ""
         echo "✓ All modules built and published successfully!"
         ;;
-    reinstall)
-        print_header "Building" "workspace"
-        cd "$start_dir"
-        just build
-        echo "✓ workspace built successfully"
-
+    install)
         for module in $modules; do
+            if [ -d "$start_dir/$module/.git" ]; then
+                print_header "Skipping clone for" "$module"
+                echo "✓ $module already exists"
+                continue
+            fi
+
             print_header "Cloning" "$module"
-            rm -rf "$start_dir/$module"
             cd "$start_dir"
             git clone "git@github.com:sollecitom/$module.git"
             echo "✓ $module cloned"
         done
 
+        bash "$start_dir/scripts/workspace.sh" build "workspace $modules"
+
+        echo ""
+        echo "✓ All modules installed successfully!"
+        ;;
+    reinstall)
         for module in $modules; do
-            print_header "Building" "$module"
-            cd "$start_dir/$module"
-            just build
-            echo "✓ $module built successfully"
+            if [ -d "$start_dir/$module" ]; then
+                print_header "Removing" "$module"
+                rm -rf "$start_dir/$module"
+                echo "✓ $module removed"
+            fi
         done
+
+        bash "$start_dir/scripts/workspace.sh" install "$modules"
 
         echo ""
         echo "✓ All modules reinstalled successfully!"
