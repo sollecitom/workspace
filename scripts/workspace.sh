@@ -27,6 +27,13 @@ base_image_latest_major=""
 base_image_target_major=""
 base_image_gradle_backup=""
 base_image_dockerfile_backup=""
+update_relevant_paths=(
+    "gradle/libs.versions.toml"
+    "gradle.properties"
+    "gradle/wrapper/gradle-wrapper.properties"
+    "container-versions.properties"
+    "Dockerfile"
+)
 
 cleanup() {
     cd "$start_dir"
@@ -69,6 +76,40 @@ sanitize_gradle_output() {
         s/\e\][^\a]*(?:\a|\e\\\\)//g;
         s/\e\[[0-?]*[ -\/]*[@-~]//g;
     ' | tr -d '\000-\010\013\014\016-\037\177'
+}
+
+repo_head() {
+    git rev-parse HEAD
+}
+
+repo_has_net_worktree_changes() {
+    [ -n "$(git status --porcelain=v1 --untracked-files=normal)" ]
+}
+
+repo_has_update_relevant_changes() {
+    [ -n "$(git status --porcelain=v1 --untracked-files=normal -- "${update_relevant_paths[@]}")" ]
+}
+
+update_build_reason() {
+    local pre_pull_head="$1"
+    local post_pull_head="$2"
+
+    if [ "$pre_pull_head" != "$post_pull_head" ]; then
+        printf '%s\n' "pulled commits changed HEAD"
+        return 0
+    fi
+
+    if repo_has_update_relevant_changes; then
+        printf '%s\n' "update-relevant files changed"
+        return 0
+    fi
+
+    if repo_has_net_worktree_changes; then
+        printf '%s\n' "other repo files changed"
+        return 0
+    fi
+
+    return 1
 }
 
 clear_workspace_events() {
@@ -409,19 +450,29 @@ case "$command_name" in
     update)
         summary_file=$(mktemp)
         for module in $modules; do
+            local_pre_pull_head=""
+            local_post_pull_head=""
+            build_reason=""
             print_header "Updating" "$module"
             cd_module "$module"
             git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
+            local_pre_pull_head=$(repo_head)
             just pull
+            local_post_pull_head=$(repo_head)
             prepare_base_image_policy
             just update-all
-            if just build; then
-                :
-            elif apply_base_image_fallback; then
-                just build
+            if build_reason=$(update_build_reason "$local_pre_pull_head" "$local_post_pull_head"); then
+                echo "Running standalone build for $module; $build_reason."
+                if just build; then
+                    :
+                elif apply_base_image_fallback; then
+                    just build
+                else
+                    restore_base_image_files
+                    exit 1
+                fi
             else
-                restore_base_image_files
-                exit 1
+                echo "Skipping standalone build for $module; no pulled commits or repo changes."
             fi
             module_summary=$(collect_module_summary)
             if printf '%s\n' "$module_summary" | grep -q '[^[:space:]]'; then

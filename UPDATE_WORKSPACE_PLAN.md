@@ -400,9 +400,15 @@ Since you rejected it, the plan keeps the shared Gradle summary task and focuses
 6. [x] Surface base-image refreshes, major upgrades, pinned-major skips, and fallback events clearly in the workspace summary.
    Progress:
    The shared Gradle `updateSummary` task now renders image tag changes more cleanly, treats digest-only changes as refreshes, and can include workspace-provided pinned-major or fallback events. The successful workspace run confirmed the major-upgrade summary output for `modulith-example` and `element-service-example`.
-7. [ ] Capture per-repo before/after update state in `scripts/workspace.sh` so the workspace runner can tell whether the current run introduced any meaningful changes.
-8. [ ] Define the exact set of update-relevant files and conditions that should force a standalone repo build after `pull` and `update-all`.
-9. [ ] Skip a repo's standalone `just build` when the current update run produced no pulled commits, no meaningful dependency or base-image changes, and no net worktree diff for that repo.
+7. [x] Capture per-repo before/after update state in `scripts/workspace.sh` so the workspace runner can tell whether the current run introduced any meaningful changes.
+   Progress:
+   `scripts/workspace.sh` now captures each repo's pre-pull and post-pull `HEAD`, then inspects the resulting worktree state after `update-all` before deciding whether a standalone `just build` is required.
+8. [x] Define the exact set of update-relevant files and conditions that should force a standalone repo build after `pull` and `update-all`.
+   Progress:
+   The workspace runner now treats these paths as update-relevant inputs: `gradle/libs.versions.toml`, `gradle.properties`, `gradle/wrapper/gradle-wrapper.properties`, `container-versions.properties`, and `Dockerfile`. A standalone build is forced when pulled commits changed `HEAD`, when any of those update-relevant files changed, or conservatively when any other net repo worktree diff remains after `update-all`.
+9. [x] Skip a repo's standalone `just build` when the current update run produced no pulled commits, no meaningful dependency or base-image changes, and no net worktree diff for that repo.
+   Progress:
+   `update-workspace` now skips the extra standalone build in that no-op case and prints whether it is running or skipping the build for each repo.
 10. [?] Add `mavenLocal()` to every repo for both plugin/buildscript resolution and normal dependency resolution, and verify the dependency update plugin sees locally published internal versions through the same setup.
    Progress:
    All normal repos now declare `mavenLocal()` in `pluginManagement.repositories` and `dependencyResolutionManagement.repositories`, and each repo has an explicit `sollecitomGradlePluginsVersion=1.0.0`. The remaining verification is to prove the dependency update flow observes newer locally published internal versions end to end.
@@ -431,7 +437,13 @@ Since you rejected it, the plan keeps the shared Gradle summary task and focuses
 23. [?] Audit `jibDockerBuild` inputs to ensure image content changes only when actual image inputs change.
 24. [?] Audit `containerBasedServiceTest` task inputs and dependencies so unchanged image/test inputs do not trigger reruns.
 25. [?] Audit `securityScan` task inputs and dependencies so unchanged image/scan inputs do not trigger reruns.
-26. [ ] Investigate parallelizing builds of independent services and applications, with explicit limits for memory, workers, and daemon pressure so parallelism does not destabilize local runs.
+26. [?] Investigate parallelizing builds of independent services and applications, with explicit limits for memory, workers, and daemon pressure so parallelism does not destabilize local runs.
+   Progress:
+   The dependency boundary is now clear enough to propose a safe future rollout:
+   - keep producer repos serialized in dependency order: `gradle-plugins`, `acme-schema-catalogue`, `swissknife`, `pillar`
+   - only parallelize the consumer wave after those publishes succeed: `tools`, `examples`, `facts`, `backend-skeleton`, `modulith-example`, `element-service-example`, `lattice`
+   - start with `max_parallel_consumers=2` on a 38 GB / 11 CPU machine, and keep `modulith-example` plus `element-service-example` as heavy service builds that should not share the same parallel slot until memory pressure is measured under Jib/container-test load
+   - keep `pull`, `update-all`, and local publishing serialized so `mavenLocal()` remains the single ordered source of freshly published internal versions
 27. [ ] Verify end-to-end that unchanged service repos do not rebuild images or rerun image-based tests/scans.
 28. [ ] Verify end-to-end that unchanged upstream library outputs do not trigger meaningful downstream rebuild work.
 29. [ ] Verify end-to-end that a no-change `just update-workspace` run is materially faster while still relying on Gradle-native incrementality.
