@@ -28,6 +28,7 @@ Make `just update-workspace` cheap when nothing meaningful changed by relying pr
 20. Maven-local cleanup should be limited to workspace artifacts only; each repo should expose a `just cleanup` command, and the workspace should expose a delegating cleanup command. The trigger point for automatic cleanup remains an open design question.
 21. Keep the current newer Kotlin version across repos for now, even though `gradle-plugins` emits the known `kotlin-dsl` compatibility warning. Treat that warning as accepted noise rather than a migration driver.
 22. Machine-level development prerequisites should be managed from the workspace layer, not from individual repos.
+23. Repo-local container image update events should appear in the workspace update summary when a repo owns its own image-version automation.
 
 ## Proposed Design
 
@@ -446,6 +447,12 @@ The workspace updater now retries a failed `latest` Java major attempt on the pr
 4.4 [x] Surface base-image refreshes, major upgrades, pinned-major skips, and fallback events clearly in the workspace summary.
 Progress:
 The shared Gradle `updateSummary` task now renders image tag changes more cleanly, treats digest-only changes as refreshes, and can include workspace-provided pinned-major or fallback events. The successful workspace run confirmed the major-upgrade summary output for `modulith-example` and `element-service-example`.
+4.4.1 [x] Surface repo-local container-version updater changes in the workspace summary where such updater scripts exist.
+Progress:
+`scripts/workspace.sh` now passes a workspace event file into repo-local `just update-all` runs, and `swissknife/scripts/update-container-versions.sh` appends concrete image update lines such as `keycloak: 26.6.0 → 26.6.1` when it changes repo-owned container versions.
+4.4.2 [x] Confirm which repos actually need repo-local container-version summary plumbing.
+Progress:
+Only `swissknife` currently has dedicated repo-local container version automation (`container-versions.properties` plus `scripts/update-container-versions.sh`). Other repos with Docker image usage are already covered by the shared summary path through `gradle.properties` and, where applicable, `Dockerfile` changes. `pillar` uses an external Docker base image (`eclipse-temurin:25-jre-noble`) and Testcontainers abstractions, but does not define its own concrete external container image versions.
 4.5 [?] Refactor the shared Jib convention away from `afterEvaluate` and other late mutation patterns.
 4.6 [?] Re-evaluate whether service image builds can run with configuration cache after the Jib convention refactor.
 4.7 [?] Audit `jibDockerBuild` inputs to ensure image content changes only when actual image inputs change.
@@ -492,6 +499,9 @@ Confirmed by the `gradle-plugins` `1.0.4` publish and the subsequent successful 
 1.4 [x] Decide whether the workspace repo should permanently track the root `justfile` and `UPDATE_WORKSPACE_PLAN.md`.
 Result:
 Yes. They are now part of the operational workspace surface and should remain tracked.
+1.5 [x] Confirm which repos besides `swissknife` need extra summary wiring for external container image updates.
+Result:
+None at the moment. `swissknife` is the only repo with repo-local container image version automation. Service repos already surface Docker base image changes through the shared Gradle summary, and `pillar` only declares `dockerBaseImageParam=eclipse-temurin:25-jre-noble` plus generic Testcontainers abstractions.
 
 2. **Next**
 2.1 [ ] Prove the first-install/bootstrap path on a clean machine.
@@ -503,6 +513,7 @@ Yes. They are now part of the operational workspace surface and should remain tr
    - per-repo `just cleanup`
    - workspace `just cleanup-workspace`
    - preserve a small rollback window
+2.4 [ ] Decide whether repo-local update scripts should share a tiny helper convention for emitting workspace summary events, or continue using a simple environment-file contract.
 
 ## Success Criteria
 

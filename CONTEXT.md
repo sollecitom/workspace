@@ -6,6 +6,11 @@ Personal multi-project Kotlin/JVM workspace. All projects are sibling git repos 
 
 Normal repos now consume internal libraries and conventions by explicit published version from `mavenLocal()`. Composite `includeBuild(...)` is no longer the normal workspace path; a future separate aggregator repo may still use it for cross-repo development.
 
+Container image handling currently has two paths:
+
+- shared Docker base image updates flow through repo `gradle.properties` and, where present, `Dockerfile`
+- repo-local container version automation is currently only present in `swissknife` via `container-versions.properties` and `scripts/update-container-versions.sh`
+
 ## Dependency Graph
 
 ```
@@ -107,6 +112,7 @@ Docker images built by Jib are scanned for vulnerabilities using Trivy (via Test
 - Update with `just update-container-versions` in swissknife
 - Suppress accepted CVEs in `.trivyignore` per project
 - Base Docker images are now digest-pinned through repo `gradle.properties` policy fields and refreshed by `just update-workspace`
+- Repo-local container image updates can contribute extra per-repo summary lines through the workspace event-file contract; today only `swissknife` uses that path
 
 ## Architecture Patterns
 

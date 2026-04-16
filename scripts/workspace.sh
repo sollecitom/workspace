@@ -466,7 +466,7 @@ case "$command_name" in
             just pull
             local_post_pull_head=$(repo_head)
             prepare_base_image_policy
-            just update-all
+            WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" just update-all
             if build_reason=$(update_build_reason "$local_pre_pull_head" "$local_post_pull_head"); then
                 echo "Running standalone build for $module; $build_reason."
                 if just build; then

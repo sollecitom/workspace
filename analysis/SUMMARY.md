@@ -55,10 +55,10 @@ Gradle-plugins now registers proper plugin IDs via `gradlePlugin { plugins { } }
 
 ### Current state
 - Plugin IDs are registered, including composite `sollecitom.kotlin-library-conventions`
-- All consumers use `pluginManagement { includeBuild("../gradle-plugins") }` — no `buildSrc` or `publishToMavenLocal` needed
+- Normal repos now consume `gradle-plugins` by explicit published version from `mavenLocal()` rather than `includeBuild("../gradle-plugins")`
+- Internal producer repos publish explicit non-`SNAPSHOT` versions, and the workspace uses an internal-only updater plus normal `versionCatalogUpdate` for the full path
 - All `allprojects`/`subprojects` blocks removed — each submodule declares its own `plugins { id("sollecitom.kotlin-library-conventions") }`
-- All inter-project dependencies use `includeBuild` (swissknife, pillar, acme-schema-catalogue)
-- Configuration cache enabled across all projects
+- Configuration cache enabled across all projects, with known third-party limitations still present for `versionCatalogUpdate`
 
 ## Documentation (Done)
 
@@ -73,14 +73,14 @@ Gradle-plugins now registers proper plugin IDs via `gradlePlugin { plugins { } }
 
 ## `update-workspace` Java Version Handling
 
-The `update-workspace` command (in the root justfile) should attempt to upgrade to the latest available Java version, but avoid getting stuck in a loop when the toolchain isn't available yet. Proposed behavior:
+The `update-workspace` command now manages workspace prerequisites centrally and upgrades only the targeted Temurin package through Homebrew rather than doing a general Homebrew update.
 
-1. **Before updating projects**, check if a newer Temurin JDK is available (e.g., via `brew info --cask temurin`).
-2. **If a newer version is available**, attempt the upgrade. If it succeeds, update `JAVA_HOME`, the toolchain version in `gradle-plugins` (`Plugins.kt` and `KotlinTaskConventions.kt`), and the `build-logic` conventions in `backend-skeleton`.
-3. **If the upgrade fails** (e.g., Gradle or Kotlin don't support the new JVM target yet), log `info "No compatible Java version available"` and continue with the current version.
-4. **To avoid retrying on every run**, record the Gradle and Kotlin versions at the time the Java upgrade was last attempted in a marker file (e.g., `.java-upgrade-marker`). Skip the Java upgrade check until either the Gradle or Kotlin version changes.
+Current behavior:
 
-This prevents the cycle where `update-workspace` upgrades Java, builds fail because the toolchain target isn't supported, and the next run tries again.
+1. Ensure `just`, `jq`, and Temurin are installed from the workspace layer.
+2. Upgrade only the `temurin` cask, with Homebrew auto-update and cleanup noise suppressed.
+3. Keep machine-level JDK mutation out of individual repos.
+4. Leave toolchain source changes explicit rather than silently rewriting repo code during a workspace update.
 
 ## Test Container Version Drift
 
@@ -113,6 +113,13 @@ Docker image vulnerability scanning via Trivy integrated into element-service-ex
 - CVE-2025-24970 (netty-handler) fixed via minimum version enforcement
 - Base image switched from Alpine to Ubuntu Noble for faster security patches
 - Container versions centralized in `swissknife/container-versions.properties` with `just update-container-versions`
+
+## Container Image Update Reporting
+
+- Shared Docker base image changes are reported from repo-owned files such as `gradle.properties` and `Dockerfile`
+- Repo-local container image automation can emit extra summary lines back to the workspace runner through an event-file contract
+- `swissknife` is currently the only repo using that repo-local image-update path
+- `pillar` uses `eclipse-temurin:25-jre-noble` as its explicit external base image but does not define its own concrete external test container image versions
 
 ## Prioritized TODO List
 
