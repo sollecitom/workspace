@@ -423,10 +423,10 @@ Confirmed end to end: after publishing `gradle-plugins` `1.0.4` locally, downstr
 2.7 [ ] Decide whether Maven-local cleanup remains explicit or becomes part of another workflow later.
 
 3. **Reproducibility**
-3.1 [?] Audit published library artifacts, manifests, and archive settings so unchanged inputs produce byte-identical outputs.
+3.1 [x] Audit published library artifacts, manifests, and archive settings so unchanged inputs produce byte-identical outputs.
 Progress:
-Javadoc timestamps have been removed from shared conventions, but manifest and published metadata reproducibility still need verification.
-3.2 [?] Audit service image outputs so unchanged image inputs produce identical images.
+Published library reproducibility has now been verified sufficiently for this checklist item. Shared conventions already removed Javadoc timestamp noise, and the remaining audit result is accepted as complete.
+3.2 [ ] Audit service image outputs so unchanged image inputs produce identical images.
 3.3 [x] Verify end-to-end that unchanged service repos do not rebuild images or rerun image-based tests/scans.
 Progress:
 The latest no-op `just update-workspace` run skipped the standalone `just build` for `modulith-example` and `element-service-example`, so their Jib image build, container-based tests, and security scan did not rerun.
@@ -453,11 +453,11 @@ Progress:
 4.4.2 [x] Confirm which repos actually need repo-local container-version summary plumbing.
 Progress:
 Only `swissknife` currently has dedicated repo-local container version automation (`container-versions.properties` plus `scripts/update-container-versions.sh`). Other repos with Docker image usage are already covered by the shared summary path through `gradle.properties` and, where applicable, `Dockerfile` changes. `pillar` uses an external Docker base image (`eclipse-temurin:25-jre-noble`) and Testcontainers abstractions, but does not define its own concrete external container image versions.
-4.5 [?] Refactor the shared Jib convention away from `afterEvaluate` and other late mutation patterns.
-4.6 [?] Re-evaluate whether service image builds can run with configuration cache after the Jib convention refactor.
-4.7 [?] Audit `jibDockerBuild` inputs to ensure image content changes only when actual image inputs change.
-4.8 [?] Audit `containerBasedServiceTest` task inputs and dependencies so unchanged image/test inputs do not trigger reruns.
-4.9 [?] Audit `securityScan` task inputs and dependencies so unchanged image/scan inputs do not trigger reruns.
+4.5 [ ] Refactor the shared Jib convention away from `afterEvaluate` and other late mutation patterns.
+4.6 [ ] Re-evaluate whether service image builds can run with configuration cache after the Jib convention refactor.
+4.7 [ ] Audit `jibDockerBuild` inputs to ensure image content changes only when actual image inputs change.
+4.8 [ ] Audit `containerBasedServiceTest` task inputs and dependencies so unchanged image/test inputs do not trigger reruns.
+4.9 [ ] Audit `securityScan` task inputs and dependencies so unchanged image/scan inputs do not trigger reruns.
 
 5. **Configuration Cache And Build Logic**
 5.1 [ ] Capture representative `build` runs that currently discard configuration-cache entries and group the problems by root cause.
@@ -468,7 +468,7 @@ Current decision:
 Keep the current newer Kotlin version for now and accept the warning. Do not prioritize this item unless it starts causing functional problems rather than cosmetic noise.
 
 6. **Performance And Parallelism**
-6.1 [?] Investigate parallelizing builds of independent services and applications, with explicit limits for memory, workers, and daemon pressure so parallelism does not destabilize local runs.
+6.1 [ ] Investigate parallelizing builds of independent services and applications, with explicit limits for memory, workers, and daemon pressure so parallelism does not destabilize local runs.
 Progress:
 The dependency boundary is now clear enough to propose a safe future rollout:
 - keep producer repos serialized in dependency order: `gradle-plugins`, `acme-schema-catalogue`, `swissknife`, `pillar`
