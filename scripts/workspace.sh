@@ -151,6 +151,11 @@ reset_base_image_state() {
     base_image_dockerfile_backup=""
 }
 
+ensure_workspace_requirements() {
+    local mode="$1"
+    bash "$start_dir/scripts/ensure-workspace-requirements.sh" "$mode"
+}
+
 property_value() {
     local file="$1"
     local key="$2"
@@ -448,6 +453,7 @@ collect_module_summary() {
 
 case "$command_name" in
     update)
+        ensure_workspace_requirements update
         summary_file=$(mktemp)
         for module in $modules; do
             local_pre_pull_head=""
@@ -598,6 +604,7 @@ case "$command_name" in
         echo "✓ All modules built and published successfully!"
         ;;
     install)
+        ensure_workspace_requirements install
         for module in $modules; do
             if [ -d "$start_dir/$module/.git" ]; then
                 print_header "Skipping clone for" "$module"

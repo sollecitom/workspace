@@ -24,6 +24,15 @@ rebuild:
 update-all:
     @:
 
+@check-workspace-requirements:
+    bash ./scripts/ensure-workspace-requirements.sh check
+
+@ensure-workspace-requirements:
+    bash ./scripts/ensure-workspace-requirements.sh install
+
+@update-java-workspace:
+    bash ./scripts/ensure-workspace-requirements.sh update-java
+
 # Workspace operations
 @update-workspace:
     bash ./scripts/workspace.sh update '{{workspace_and_modules}}'
