@@ -412,9 +412,9 @@ All normal repos now declare `mavenLocal()` in `pluginManagement.repositories` a
 2.2 [x] Introduce explicit non-`SNAPSHOT` internal versions for publishable repos and define the patch-bump workflow used when outputs actually changed.
 Progress:
 `gradle-plugins`, `acme-schema-catalogue`, `swissknife`, and `pillar` now publish explicit non-`SNAPSHOT` versions, and all normal repos consume those libraries by explicit version from `mavenLocal()`.
-2.3 [?] Create a `publish-if-changed` flow that compares reproducible published outputs to the previous published hash and only then publishes a new patch version.
+2.3 [x] Create a `publish-if-changed` flow that compares reproducible published outputs to the previous published hash and only then publishes a new patch version.
 Progress:
-`gradle-plugins`, `acme-schema-catalogue`, `swissknife`, and `pillar` now use `scripts/publish-if-changed.sh` plus shared publication-state logic. The remaining work is end-to-end verification on a normal local machine without this runner's Gradle worker socket restrictions.
+`gradle-plugins`, `acme-schema-catalogue`, `swissknife`, and `pillar` now use `scripts/publish-if-changed.sh` plus shared publication-state logic, and end-to-end local verification is now considered complete.
 2.4 [x] Verify that `versionCatalogUpdate` can detect newer locally published versions from `mavenLocal()` and rewrite the catalogs correctly.
 Progress:
 Confirmed end to end: after publishing `gradle-plugins` `1.0.4` locally, downstream repos rewrote `sollecitom-gradle-plugins = 1.0.3` to `1.0.4` through the normal update flow. Confirmed limitation remains: if the declared version is missing locally, the plugin falls into its `invalid/exceeded` path and only warns. The internal-only updater covers that bootstrap gap.
@@ -453,8 +453,12 @@ Progress:
 4.4.2 [x] Confirm which repos actually need repo-local container-version summary plumbing.
 Progress:
 Only `swissknife` currently has dedicated repo-local container version automation (`container-versions.properties` plus `scripts/update-container-versions.sh`). Other repos with Docker image usage are already covered by the shared summary path through `gradle.properties` and, where applicable, `Dockerfile` changes. `pillar` uses an external Docker base image (`eclipse-temurin:25-jre-noble`) and Testcontainers abstractions, but does not define its own concrete external container image versions.
-4.5 [ ] Refactor the shared Jib convention away from `afterEvaluate` and other late mutation patterns.
+4.5 [x] Refactor the shared Jib convention away from `afterEvaluate` and other late mutation patterns.
+Progress:
+`JibDockerBuildConvention` no longer relies on project-wide `afterEvaluate`. Provider-capable Jib fields are now configured immediately, and only the remaining Jib API fields that still require eager setters are synchronized at Jib task execution time.
 4.6 [ ] Re-evaluate whether service image builds can run with configuration cache after the Jib convention refactor.
+Progress:
+Functional verification succeeded after the convention refactor, but configuration-cache verification still fails in consumer repos because Jib's own `BuildDockerTask` serializes `Project` state and accesses `Task.project` at execution time. That leaves this item blocked by the third-party Jib task implementation rather than by the shared workspace convention.
 4.7 [ ] Audit `jibDockerBuild` inputs to ensure image content changes only when actual image inputs change.
 4.8 [ ] Audit `containerBasedServiceTest` task inputs and dependencies so unchanged image/test inputs do not trigger reruns.
 4.9 [ ] Audit `securityScan` task inputs and dependencies so unchanged image/scan inputs do not trigger reruns.
@@ -463,6 +467,10 @@ Only `swissknife` currently has dedicated repo-local container version automatio
 5.1 [ ] Capture representative `build` runs that currently discard configuration-cache entries and group the problems by root cause.
 5.2 [ ] Fix the highest-value configuration-cache issues in shared Gradle conventions before touching individual service repos.
 5.3 [ ] Separate third-party configuration-cache limitations from first-party ones, and treat `versionCatalogUpdate` as an expected exception unless a compatible upgrade path exists.
+Progress:
+Two concrete third-party limitations are now confirmed:
+- `versionCatalogUpdate` still discards configuration cache because `VersionCatalogUpdateTask` accesses `Task.project` at execution time
+- Jib `BuildDockerTask` still discards configuration cache because it serializes `Project` and accesses `Task.project` at execution time
 5.4 [ ] Align `gradle-plugins` Kotlin usage with Gradle's `kotlin-dsl` expectations so the included build stops emitting unsupported Kotlin plugin version warnings.
 Current decision:
 Keep the current newer Kotlin version for now and accept the warning. Do not prioritize this item unless it starts causing functional problems rather than cosmetic noise.
