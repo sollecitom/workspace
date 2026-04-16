@@ -2,39 +2,50 @@
 
 ## Overview
 
-Personal multi-project Kotlin/JVM workspace. All projects are sibling git repos under `~/workspace`, managed together via a root `justfile`. All internal dependencies resolve via `includeBuild` — no `publishToMavenLocal` needed for builds.
+Personal multi-project Kotlin/JVM workspace. All projects are sibling git repos under `~/workspace`, managed together via a root `justfile`.
+
+Normal repos now consume internal libraries and conventions by explicit published version from `mavenLocal()`. Composite `includeBuild(...)` is no longer the normal workspace path; a future separate aggregator repo may still use it for cross-repo development.
 
 ## Dependency Graph
 
 ```
-gradle-plugins          (build conventions — plugin IDs like sollecitom.xyz)
+gradle-plugins          (published build conventions)
        ↓
-swissknife              (general-purpose libraries, ~98 modules)
-acme-schema-catalogue   (Avro/JSON schemas)
+acme-schema-catalogue   (published Avro/JSON schemas)
        ↓
-pillar                  (domain-specific libraries, ~36 modules)
+swissknife              (published general-purpose libraries)
        ↓
-tools / examples / facts / lattice / modulith-example / element-service-example / backend-skeleton
+pillar                  (published domain-specific libraries)
+       ↓
+tools / examples / facts / lattice / backend-skeleton / modulith-example / element-service-example
 ```
 
-All consumers use `includeBuild("../gradle-plugins")`, `includeBuild("../swissknife")`, etc. in both `settings.gradle.kts` and `buildSrc/settings.gradle.kts`.
+Published internal versions are discovered locally through `mavenLocal()`. Workspace flows now distinguish between:
+
+- `just build-workspace`: internal-only updates plus build/publish
+- `just update-workspace`: pull, internal updates, external updates, then conditional standalone build only when the repo actually changed
 
 ## Build System
 
-- **Gradle 9.4.1** with Kotlin DSL, version catalogs (`gradle/libs.versions.toml`)
-- **Kotlin 2.3.20**, **JDK 25** (Temurin), **JUnit 5 + AssertK**
+- **Gradle 9.4.1** with Kotlin DSL and version catalogs (`gradle/libs.versions.toml`)
+- **Kotlin 2.3.20**, **Temurin JDK 26** on the machine, **JUnit 5 + AssertK**
 - **Configuration cache** enabled across all projects
 - **`just`** for task automation — all recipes use kebab-case
+- Workspace prerequisites are managed centrally from the root workspace scripts:
+  - `just`, `jq`, Temurin via Homebrew
+  - `git`, `curl`, Docker with `buildx`
 
 ### Key Commands
 
 | Command | Description |
 |---------|-------------|
 | `just build` | Build a single project |
-| `just build-workspace` | Build all projects in dependency order |
-| `just publish` | Publish to mavenLocal (available but not required for builds) |
-| `just update-all` | Update dependencies + Gradle wrapper |
+| `just build-workspace` | Internal-only workspace update plus build/publish in dependency order |
+| `just update-workspace` | Pull, update internal/external versions, then conditionally build changed repos |
+| `just publish` | Publish internal producer outputs to `mavenLocal()` when changed |
+| `just update-all` | Repo-local internal update + external version update + wrapper update |
 | `just push-workspace` | Git push all projects |
+| `just update-java-workspace` | Targeted machine-level Temurin update from the workspace root |
 
 ## Build Troubleshooting
 
@@ -65,6 +76,8 @@ In sandboxed environments (e.g., Meta OnDemand), network access may be blocked. 
 
 Jib 3.5.3 is incompatible with configuration cache at runtime (`jibDockerBuild` serializes `Project`). In modulith-example and element-service-example, `just build` splits into two Gradle invocations — `build` with config cache, then `jibDockerBuild`/`containerBasedServiceTest` with `--no-configuration-cache`.
 
+During `just update-workspace`, those service repos now skip the standalone `just build` entirely when no pulled commits or update-relevant file changes were produced for the repo.
+
 ## gradle-plugins
 
 Conventions are registered as proper Gradle plugins with IDs:
@@ -84,6 +97,8 @@ Conventions are registered as proper Gradle plugins with IDs:
 
 Submodules apply `plugins { id("sollecitom.kotlin-library-conventions") }`. No `buildSrc` or `allprojects` — each module is self-contained.
 
+`gradle-plugins` intentionally keeps Kotlin `2.3.20` for now, even though Gradle emits the known `kotlin-dsl` compatibility warning. That warning is currently accepted noise.
+
 ## Security Scanning
 
 Docker images built by Jib are scanned for vulnerabilities using Trivy (via Testcontainers). The `securityScan` task runs after `jibDockerBuild` in element-service-example and modulith-example.
@@ -91,7 +106,7 @@ Docker images built by Jib are scanned for vulnerabilities using Trivy (via Test
 - Trivy version and container image versions are managed in `swissknife/container-versions.properties`
 - Update with `just update-container-versions` in swissknife
 - Suppress accepted CVEs in `.trivyignore` per project
-- Base Docker image: `eclipse-temurin:25-jre-noble` (Ubuntu Noble — faster security patches than Alpine)
+- Base Docker images are now digest-pinned through repo `gradle.properties` policy fields and refreshed by `just update-workspace`
 
 ## Architecture Patterns
 

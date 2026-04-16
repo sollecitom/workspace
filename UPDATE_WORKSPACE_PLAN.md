@@ -26,6 +26,8 @@ Make `just update-workspace` cheap when nothing meaningful changed by relying pr
 18. Upstream repos should publish a new patch version only when their reproducible outputs actually changed.
 19. All repos should expose `mavenLocal()` for both plugin/buildscript resolution and normal dependency resolution so locally published internal versions are visible everywhere, including to the dependency update plugin during workspace updates.
 20. Maven-local cleanup should be limited to workspace artifacts only; each repo should expose a `just cleanup` command, and the workspace should expose a delegating cleanup command. The trigger point for automatic cleanup remains an open design question.
+21. Keep the current newer Kotlin version across repos for now, even though `gradle-plugins` emits the known `kotlin-dsl` compatibility warning. Treat that warning as accepted noise rather than a migration driver.
+22. Machine-level development prerequisites should be managed from the workspace layer, not from individual repos.
 
 ## Proposed Design
 
@@ -425,6 +427,9 @@ Since you rejected it, the plan keeps the shared Gradle summary task and focuses
 15. [x] Add a separate internal-only workspace update path alongside the full external-plus-internal update path.
    Progress:
    Shared Gradle task `updateInternalCatalogVersions` now updates internal version refs from `mavenLocal()` using configurable internal group prefixes, every repo exposes `update-internal-dependencies`, and repo `build` commands now run the internal-only updater before build/publish. Workspace `build-workspace` therefore stays internal-only, while `update-workspace` continues to run the full update flow.
+15.1 [x] Centralize machine-level workspace requirements and JDK management at the workspace root.
+   Progress:
+   Workspace commands now ensure `just`, `jq`, and Temurin through a workspace-level script. Repo-local JDK update scripts were removed from `gradle-plugins` and `backend-skeleton`, and `backend-skeleton` no longer mutates the machine JDK during `update-all`.
 16. [?] Verify that `versionCatalogUpdate` can detect newer locally published versions from `mavenLocal()` and rewrite the catalogs correctly.
    Progress:
    Confirmed: it rewrites internal versions when the currently declared internal version already exists locally as a valid published version. Confirmed limitation: if the declared version is missing locally, the plugin falls into its `invalid/exceeded` path and only warns. The new internal-only updater covers that bootstrap gap.
@@ -432,6 +437,8 @@ Since you rejected it, the plan keeps the shared Gradle summary task and focuses
 18. [ ] Fix the highest-value configuration-cache issues in shared Gradle conventions before touching individual service repos.
 19. [ ] Separate third-party configuration-cache limitations from first-party ones, and treat `versionCatalogUpdate` as an expected exception unless a compatible upgrade path exists.
 20. [ ] Align `gradle-plugins` Kotlin usage with Gradle's `kotlin-dsl` expectations so the included build stops emitting unsupported Kotlin plugin version warnings.
+   Current decision:
+   Keep the current newer Kotlin version for now and accept the warning. Do not prioritize this item unless it starts causing functional problems rather than cosmetic noise.
 21. [?] Refactor the shared Jib convention away from `afterEvaluate` and other late mutation patterns.
 22. [?] Re-evaluate whether service image builds can run with configuration cache after the Jib convention refactor.
 23. [?] Audit `jibDockerBuild` inputs to ensure image content changes only when actual image inputs change.
@@ -444,25 +451,43 @@ Since you rejected it, the plan keeps the shared Gradle summary task and focuses
    - only parallelize the consumer wave after those publishes succeed: `tools`, `examples`, `facts`, `backend-skeleton`, `modulith-example`, `element-service-example`, `lattice`
    - start with `max_parallel_consumers=2` on a 38 GB / 11 CPU machine, and keep `modulith-example` plus `element-service-example` as heavy service builds that should not share the same parallel slot until memory pressure is measured under Jib/container-test load
    - keep `pull`, `update-all`, and local publishing serialized so `mavenLocal()` remains the single ordered source of freshly published internal versions
-27. [ ] Verify end-to-end that unchanged service repos do not rebuild images or rerun image-based tests/scans.
-28. [ ] Verify end-to-end that unchanged upstream library outputs do not trigger meaningful downstream rebuild work.
+27. [x] Verify end-to-end that unchanged service repos do not rebuild images or rerun image-based tests/scans.
+   Progress:
+   The latest no-op `just update-workspace` run skipped the standalone `just build` for `modulith-example` and `element-service-example`, so their Jib image build, container-based tests, and security scan did not rerun.
+28. [x] Verify end-to-end that unchanged upstream library outputs do not trigger meaningful downstream rebuild work.
+   Progress:
+   The latest no-op `just update-workspace` run skipped the standalone `just build` for downstream consumer repos after internal/external update tasks completed without net repo changes, confirming unchanged upstream outputs no longer force meaningful downstream rebuild work.
 29. [ ] Verify end-to-end that a no-change `just update-workspace` run is materially faster while still relying on Gradle-native incrementality.
 30. [ ] Re-enable the Gradle daemon for local runs across all workspace repos.
 
 ## Immediate Follow-Ups
 
-1. Run `just update-workspace` end to end and confirm the new full flow:
+1. [x] Run `just update-workspace` end to end and confirm the new full flow:
    - commits and pulls first
    - updates internal versions from `mavenLocal()`
    - updates external versions through `versionCatalogUpdate`
    - builds every repo successfully
    - republishes internal producers only when artifacts changed
-2. Verify the new `BUILD SUMMARY` and `UPDATE SUMMARY` output includes internal version bumps from `updateInternalCatalogVersions`.
-3. Prove the first-install/bootstrap path on a clean machine:
+2. [x] Verify the new `BUILD SUMMARY` and `UPDATE SUMMARY` output includes internal version bumps from `updateInternalCatalogVersions`.
+   Result:
+   The no-op workspace run now reports concise summaries, suppresses generic `changed:` lines, and no longer dumps long Docker `FROM ...@sha256 ... AS ...` details when equivalent image refresh lines are already present.
+3. [ ] Prove the first-install/bootstrap path on a clean machine:
    - `just install-workspace` clones everything
    - `just build-workspace` heals missing internal versions from `mavenLocal()` and completes successfully
-4. Verify the tracked `sollecitom-gradle-plugins = 1.0.3` bootstrap can update itself cleanly on the next internal publish of `gradle-plugins`.
-5. Decide whether the workspace repo should permanently track the root `justfile` and `UPDATE_WORKSPACE_PLAN.md`, since both are now central to the workspace workflow.
+4. [ ] Verify the tracked `sollecitom-gradle-plugins = 1.0.3` bootstrap can update itself cleanly on the next internal publish of `gradle-plugins`.
+5. [x] Verify end to end that unchanged service repos do not rebuild images or rerun image-based tests/scans after a digest-stable no-op workspace run.
+   Result:
+   Confirmed by the latest no-op workspace update run.
+6. [x] Verify end to end that unchanged upstream library outputs do not trigger meaningful downstream rebuild work.
+   Result:
+   Confirmed by the latest no-op workspace update run.
+7. [ ] Prove the parallelization rollout safely:
+   - keep producers serialized
+   - parallelize only the consumer wave
+   - start with `max_parallel_consumers=2`
+8. [x] Decide whether the workspace repo should permanently track the root `justfile` and `UPDATE_WORKSPACE_PLAN.md`, since both are now central to the workspace workflow.
+   Result:
+   Yes. They are now part of the operational workspace surface and should remain tracked.
 
 ## Success Criteria
 
