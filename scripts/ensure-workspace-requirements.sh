@@ -2,6 +2,9 @@
 set -euo pipefail
 
 mode="${1:-install}"
+export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_INSTALL_CLEANUP=1
+export HOMEBREW_NO_ENV_HINTS=1
 
 require_command() {
     local command_name="$1"
@@ -25,9 +28,9 @@ brew_formula() {
     local formula="$1"
 
     if brew list --formula "$formula" >/dev/null 2>&1; then
-        HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade "$formula"
+        brew upgrade "$formula"
     else
-        HOMEBREW_NO_AUTO_UPDATE=1 brew install "$formula"
+        brew install "$formula"
     fi
 }
 
@@ -35,9 +38,9 @@ brew_cask() {
     local cask="$1"
 
     if brew list --cask "$cask" >/dev/null 2>&1; then
-        HOMEBREW_NO_AUTO_UPDATE=1 brew upgrade --cask "$cask"
+        brew upgrade --cask "$cask"
     else
-        HOMEBREW_NO_AUTO_UPDATE=1 brew install --cask "$cask"
+        brew install --cask "$cask"
     fi
 }
 
