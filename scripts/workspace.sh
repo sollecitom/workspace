@@ -764,14 +764,16 @@ run_parallel_consumer_modules() {
     local module_function="$2"
     local phase_name="$3"
     local success_verb="$4"
+    local phase_label
     local results_dir
     local failure=0
     local module
 
     [ -n "${consumer_modules// }" ] || return 0
 
+    phase_label=$(printf '%s' "$phase_name" | tr '[:upper:]' '[:lower:]')
     results_dir=$(mktemp -d)
-    echo "Running independent consumer ${phase_name,,} in parallel (max ${max_parallel_consumers})..."
+    echo "Running independent consumer ${phase_label} in parallel (max ${max_parallel_consumers})..."
 
     for module in $consumer_modules; do
         wait_for_parallel_slot
