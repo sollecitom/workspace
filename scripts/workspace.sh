@@ -579,6 +579,14 @@ run_module_publish() {
     fi
 }
 
+run_module_push() {
+    local module="$1"
+    print_header "Pushing" "$module"
+    cd_module "$module"
+    just push
+    echo "✓ $module pushed successfully"
+}
+
 run_execute_pipeline() {
     shift 3
     local steps=("$@")
@@ -604,6 +612,9 @@ run_execute_pipeline() {
                     ;;
                 publish)
                     run_module_publish "$module"
+                    ;;
+                push)
+                    run_module_push "$module"
                     ;;
                 cleanup)
                     if [ "$has_pending_base_image_state" -eq 1 ]; then

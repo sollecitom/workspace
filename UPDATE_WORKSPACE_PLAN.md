@@ -429,10 +429,10 @@ Progress:
 Cleanup now has both forms:
 - explicit via `just cleanup` and `just execute cleanup`
 - integrated at the end of `just refresh-workspace` and `just refresh-local-workspace`
-Additional workflow aliases now exist at the workspace layer so the main commands remain:
-- `just refresh-workspace` for pull + update + build/publish + cleanup
-- `just refresh-local-workspace` for internal-only build/publish + cleanup
-- `just execute ...` for explicit composition of workspace commands
+Workspace commands are now single-purpose underneath, with explicit composition at the top:
+- `just execute pull update build publish cleanup` for an exact ordered pipeline
+- `just refresh-workspace` for pull + update + build + publish + cleanup
+- `just refresh-local-workspace` for build + publish + cleanup
 
 3. **Reproducibility**
 3.1 [x] Audit published library artifacts, manifests, and archive settings so unchanged inputs produce byte-identical outputs.
