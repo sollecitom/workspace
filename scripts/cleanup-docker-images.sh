@@ -86,7 +86,13 @@ cleanup_repository() {
         return 0
     fi
 
-    printf '%s\n' "$tags_to_remove" | awk 'NF { printf "%s\0", $0 }' | xargs -0 docker image rm >/dev/null
+    while IFS= read -r image_ref; do
+        [ -n "$image_ref" ] || continue
+        docker image rm "$image_ref" >/dev/null
+    done <<EOF
+$tags_to_remove
+EOF
+
     echo "Removed ${remove_count} old Docker tags for ${repository} (kept latest ${keep_images} image ids)."
 }
 
