@@ -487,18 +487,9 @@ Two concrete third-party limitations are now confirmed:
 Current decision:
 Keep the current newer Kotlin version for now and accept the warning. Do not prioritize this item unless it starts causing functional problems rather than cosmetic noise.
 
-6. **Performance And Parallelism**
-6.1 [?] Investigate parallelizing builds of independent services and applications, with explicit limits for memory, workers, and daemon pressure so parallelism does not destabilize local runs.
-Progress:
-The workspace pipeline now implements the first conservative rollout:
-- keep producer repos serialized in dependency order: `gradle-plugins`, `acme-schema-catalogue`, `swissknife`, `pillar`
-- run the independent consumer wave in parallel during the workspace `build` step: `tools`, `examples`, `facts`, `backend-skeleton`, `modulith-example`, `element-service-example`, `lattice`
-- default to `WORKSPACE_MAX_PARALLEL_CONSUMERS=2` on the current machine
-- keep heavy service builds (`modulith-example`, `element-service-example`) subject to that same cap rather than overcommitting memory
-- keep `pull`, `update`, and `publish` serialized so `mavenLocal()` remains the single ordered source of freshly published internal versions
-This still needs end-to-end verification under a normal local run, so the item remains in implemented-but-not-yet-confirmed state.
-6.2 [ ] Verify end-to-end that a no-change `just refresh-workspace` run is materially faster while still relying on Gradle-native incrementality.
-6.3 [ ] Re-enable the Gradle daemon for local runs across all workspace repos.
+6. **Performance**
+6.1 [ ] Verify end-to-end that a no-change `just refresh-workspace` run is materially faster while still relying on Gradle-native incrementality.
+6.2 [ ] Re-enable the Gradle daemon for local runs across all workspace repos.
 
 7. **Cross-Repo Development**
 7.1 [x] Remove `includeBuild(...)` from the normal repos in rollout order, starting with `gradle-plugins`.
@@ -527,15 +518,11 @@ None at the moment. `swissknife` is the only repo with repo-local container imag
 
 2. **Next**
 2.1 [ ] Prove the first-install/bootstrap path on a clean machine.
-2.2 [ ] Prove the parallelization rollout safely:
-   - keep producers serialized
-   - parallelize only the consumer wave
-   - start with `max_parallel_consumers=2`
-2.3 [x] Add Maven-local cleanup commands:
+2.2 [x] Add Maven-local cleanup commands:
    - per-repo `just cleanup`
    - workspace `just execute cleanup`
    - preserve a small rollback window
-2.4 [ ] Decide whether repo-local update scripts should share a tiny helper convention for emitting workspace summary events, or continue using a simple environment-file contract.
+2.3 [ ] Decide whether repo-local update scripts should share a tiny helper convention for emitting workspace summary events, or continue using a simple environment-file contract.
 
 ## Success Criteria
 
