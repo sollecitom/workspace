@@ -7,7 +7,6 @@ publishable_modules="${3:-}"
 start_dir="$(pwd)"
 summary_file=""
 workspace_events_file=""
-max_parallel_consumers="${WORKSPACE_MAX_PARALLEL_CONSUMERS:-2}"
 base_image_policy_active=0
 base_image_follow_latest=0
 base_image_fallback_allowed=0
@@ -585,207 +584,11 @@ run_module_cleanup() {
     echo "✓ $module cleaned successfully"
 }
 
-consumer_modules_from_list() {
-    local consumer_modules=""
-    local module
-
-    for module in $modules; do
-        if [ "$module" = "workspace" ]; then
-            continue
-        fi
-        if ! module_is_publishable "$module"; then
-            consumer_modules="${consumer_modules} ${module}"
-        fi
-    done
-
-    printf '%s\n' "$consumer_modules"
-}
-
-consumer_modules_supporting_recipe() {
-    local recipe="$1"
-    local consumer_modules=""
-    local module
-
-    for module in $modules; do
-        if [ "$module" = "workspace" ]; then
-            continue
-        fi
-        if module_is_publishable "$module"; then
-            continue
-        fi
-        cd_module "$module"
-        if just --summary 2>/dev/null | tr ' ' '\n' | grep -Fxq "$recipe"; then
-            consumer_modules="${consumer_modules} ${module}"
-        fi
-    done
-
-    cd "$start_dir"
-
-    printf '%s\n' "$consumer_modules"
-}
-
-wait_for_parallel_slot() {
-    while [ "$(jobs -pr | wc -l | tr -d ' ')" -ge "$max_parallel_consumers" ]; do
-        sleep 0.2
-    done
-}
-
-run_parallel_consumer_builds() {
-    local consumer_modules="$1"
-    local results_dir
-    local failure=0
-    local module
-
-    [ -n "${consumer_modules// }" ] || return 0
-
-    results_dir=$(mktemp -d)
-    echo "Running independent consumer builds in parallel (max ${max_parallel_consumers})..."
-
-    for module in $consumer_modules; do
-        wait_for_parallel_slot
-        (
-            cd_module "$module"
-            if just build >"$results_dir/${module}.log" 2>&1; then
-                collect_module_summary >"$results_dir/${module}.summary" || true
-                printf '0' > "$results_dir/${module}.exit"
-            else
-                printf '%s' "$?" > "$results_dir/${module}.exit"
-            fi
-        ) &
-    done
-
-    wait || true
-
-    for module in $consumer_modules; do
-        module_exit="$(cat "$results_dir/${module}.exit" 2>/dev/null || printf '1')"
-        if [ "$module_exit" -ne 0 ]; then
-            print_header "Build failed for" "$module"
-            cat "$results_dir/${module}.log"
-            failure=1
-            continue
-        fi
-
-        if [ -n "$summary_file" ]; then
-            module_summary="$(cat "$results_dir/${module}.summary" 2>/dev/null || true)"
-            append_module_summary "$summary_file" "$module" "$module_summary" "No build-triggered dependency changes detected."
-        fi
-        echo "✓ $module built successfully"
-    done
-
-    rm -rf "$results_dir"
-
-    if [ "$failure" -ne 0 ]; then
-        exit 1
-    fi
-}
-
-run_parallel_consumer_rebuilds() {
-    local consumer_modules="$1"
-    local results_dir
-    local failure=0
-    local module
-
-    [ -n "${consumer_modules// }" ] || return 0
-
-    results_dir=$(mktemp -d)
-    echo "Running independent consumer rebuilds in parallel (max ${max_parallel_consumers})..."
-
-    for module in $consumer_modules; do
-        wait_for_parallel_slot
-        (
-            cd_module "$module"
-            if just rebuild >"$results_dir/${module}.log" 2>&1; then
-                printf '0' > "$results_dir/${module}.exit"
-            else
-                printf '%s' "$?" > "$results_dir/${module}.exit"
-            fi
-        ) &
-    done
-
-    wait || true
-
-    for module in $consumer_modules; do
-        module_exit="$(cat "$results_dir/${module}.exit" 2>/dev/null || printf '1')"
-        if [ "$module_exit" -ne 0 ]; then
-            print_header "Rebuild failed for" "$module"
-            cat "$results_dir/${module}.log"
-            failure=1
-            continue
-        fi
-
-        echo "✓ $module rebuilt successfully"
-    done
-
-    rm -rf "$results_dir"
-
-    if [ "$failure" -ne 0 ]; then
-        exit 1
-    fi
-}
-
-run_parallel_consumer_modules() {
-    local consumer_modules="$1"
-    local module_function="$2"
-    local phase_name="$3"
-    local success_verb="$4"
-    local phase_label
-    local results_dir
-    local failure=0
-    local module
-
-    [ -n "${consumer_modules// }" ] || return 0
-
-    phase_label=$(printf '%s' "$phase_name" | tr '[:upper:]' '[:lower:]')
-    results_dir=$(mktemp -d)
-    echo "Running independent consumer ${phase_label} in parallel (max ${max_parallel_consumers})..."
-
-    for module in $consumer_modules; do
-        wait_for_parallel_slot
-        (
-            set +e
-            (
-                set -e
-                "$module_function" "$module"
-            ) >"$results_dir/${module}.log" 2>&1
-            module_exit="$?"
-            printf '%s' "$module_exit" > "$results_dir/${module}.exit"
-        ) &
-    done
-
-    wait || true
-
-    for module in $consumer_modules; do
-        module_exit="$(cat "$results_dir/${module}.exit" 2>/dev/null || printf '1')"
-        if [ "$module_exit" -ne 0 ]; then
-            print_header "${phase_name} failed for" "$module"
-            cat "$results_dir/${module}.log"
-            failure=1
-            continue
-        fi
-
-        echo "✓ $module ${success_verb} successfully"
-    done
-
-    rm -rf "$results_dir"
-
-    if [ "$failure" -ne 0 ]; then
-        exit 1
-    fi
-}
-
 run_step_pull() {
     local module
-    local consumer_modules
-
     for module in $modules; do
-        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
-            run_module_pull "$module"
-        fi
+        run_module_pull "$module"
     done
-
-    consumer_modules="$(consumer_modules_from_list)"
-    run_parallel_consumer_modules "$consumer_modules" run_module_pull "Pull" "pulled"
-
     echo ""
     echo "✓ All modules pulled successfully!"
 }
@@ -813,18 +616,12 @@ run_step_update_internal() {
 
 run_step_build() {
     local module
-    local consumer_modules
 
     reset_summary_file
 
     for module in $modules; do
-        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
-            run_module_build "$module"
-        fi
+        run_module_build "$module"
     done
-
-    consumer_modules="$(consumer_modules_from_list)"
-    run_parallel_consumer_builds "$consumer_modules"
 
     print_summary_box "BUILD SUMMARY" "No build-triggered dependency changes detected."
     echo "✓ All modules built successfully!"
@@ -832,32 +629,20 @@ run_step_build() {
 
 run_step_rebuild() {
     local module
-    local consumer_modules
 
     for module in $modules; do
-        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
-            run_module_rebuild "$module"
-        fi
+        run_module_rebuild "$module"
     done
-
-    consumer_modules="$(consumer_modules_from_list)"
-    run_parallel_consumer_rebuilds "$consumer_modules"
 
     echo "✓ All modules rebuilt successfully!"
 }
 
 run_step_publish() {
     local module
-    local consumer_modules
 
     for module in $modules; do
-        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
-            run_module_publish "$module"
-        fi
+        run_module_publish "$module"
     done
-
-    consumer_modules="$(consumer_modules_supporting_recipe publish)"
-    run_parallel_consumer_modules "$consumer_modules" run_module_publish "Publish" "published"
 
     echo ""
     echo "✓ All module publish steps completed successfully!"
@@ -865,16 +650,10 @@ run_step_publish() {
 
 run_step_cleanup() {
     local module
-    local cleanup_modules
 
     for module in $modules; do
-        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
-            run_module_cleanup "$module"
-        fi
+        run_module_cleanup "$module"
     done
-
-    cleanup_modules="$(consumer_modules_from_list)"
-    run_parallel_consumer_modules "$cleanup_modules" run_module_cleanup "Cleanup" "cleaned"
 
     echo ""
     echo "✓ All modules cleaned successfully!"
@@ -963,71 +742,18 @@ run_module_pipeline() {
     fi
 }
 
-run_parallel_consumer_pipelines() {
-    local consumer_modules="$1"
-    shift
-    local steps=("$@")
-    local results_dir
-    local failure=0
-    local module
-
-    [ -n "${consumer_modules// }" ] || return 0
-
-    results_dir=$(mktemp -d)
-    echo "Running independent consumer pipelines in parallel (max ${max_parallel_consumers})..."
-
-    for module in $consumer_modules; do
-        wait_for_parallel_slot
-        (
-            set +e
-            (
-                set -e
-                run_module_pipeline "$module" "${steps[@]}"
-            ) >"$results_dir/${module}.log" 2>&1
-            module_exit="$?"
-            printf '%s' "$module_exit" > "$results_dir/${module}.exit"
-        ) &
-    done
-
-    wait || true
-
-    for module in $consumer_modules; do
-        module_exit="$(cat "$results_dir/${module}.exit" 2>/dev/null || printf '1')"
-        if [ "$module_exit" -ne 0 ]; then
-            print_header "Pipeline failed for" "$module"
-            cat "$results_dir/${module}.log"
-            failure=1
-            continue
-        fi
-
-        cat "$results_dir/${module}.log"
-    done
-
-    rm -rf "$results_dir"
-
-    if [ "$failure" -ne 0 ]; then
-        exit 1
-    fi
-}
-
 run_execute_pipeline() {
     shift 3
     local steps=("$@")
     local module
-    local consumer_modules
 
     if execute_requires_workspace_requirements "${steps[@]}"; then
         ensure_workspace_requirements update
     fi
 
     for module in $modules; do
-        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
-            run_module_pipeline "$module" "${steps[@]}"
-        fi
+        run_module_pipeline "$module" "${steps[@]}"
     done
-
-    consumer_modules="$(consumer_modules_from_list)"
-    run_parallel_consumer_pipelines "$consumer_modules" "${steps[@]}"
 }
 
 case "$command_name" in

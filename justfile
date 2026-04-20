@@ -39,9 +39,9 @@ cleanup:
 # Workspace operations
 # Workflow invariants:
 # - `execute` is the source of truth for composed workspace flows.
-# - For any given pipeline, `workspace` and publishable/library repos must run sequentially.
-# - Non-library/service repos may run in parallel, but each repo still executes the requested
-#   steps in order within that repo (for example `pull -> update -> build -> publish -> cleanup`).
+# - Workspace flows run sequentially in dependency order across all repos.
+# - Within any repo, requested steps still execute in order
+#   (for example `pull -> update -> build -> publish -> cleanup`).
 # - `build-workspace` and `refresh-local-workspace` are internal-only flows.
 # - `refresh-workspace` is the full flow and includes external dependency updates.
 

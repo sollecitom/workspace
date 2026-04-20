@@ -53,6 +53,18 @@ property_value() {
     awk -F= -v key="$key" '$1 == key { sub(/^[^=]*=/, "", $0); print $0; exit }' "$file"
 }
 
+display_path() {
+    local path="$1"
+    case "$path" in
+        "$HOME"/*)
+            printf '~/%s\n' "${path#"$HOME"/}"
+            ;;
+        *)
+            printf '%s\n' "$path"
+            ;;
+    esac
+}
+
 directory_mtime_epoch() {
     local path="$1"
     if stat -f %m "$path" >/dev/null 2>&1; then
@@ -78,11 +90,15 @@ fi
 
 group_path="${project_group//./\/}"
 artifacts_root="${maven_local}/${group_path}"
+display_artifacts_root="$(display_path "$artifacts_root")"
 
 if [ ! -d "$artifacts_root" ]; then
-    echo "No Maven-local artifact root exists at ${artifacts_root}; nothing to clean for ${project_group}."
+    echo "No Maven-local artifact root exists at ${display_artifacts_root}; nothing to clean for ${project_group}."
     exit 0
 fi
+
+artifact_directory_count="$(find "$artifacts_root" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+version_directory_count="$(find "$artifacts_root" -mindepth 2 -maxdepth 2 -type d | wc -l | tr -d ' ')"
 
 current_epoch="$(date +%s)"
 cutoff_epoch=$(( current_epoch - (max_age_days * 86400) ))
@@ -124,7 +140,7 @@ while IFS= read -r -d '' artifact_dir; do
 done < <(find "$artifacts_root" -mindepth 1 -maxdepth 1 -type d -print0)
 
 if [ "$removed_count" -eq 0 ]; then
-    echo "No Maven-local cleanup needed for ${project_group} under ${artifacts_root} (keep ${keep_versions}, max age ${max_age_days}d)."
+    echo "Found ${artifact_directory_count} artifact directories and ${version_directory_count} version directories under ${display_artifacts_root} for ${project_group}; nothing matched the cleanup rules (keep ${keep_versions}, max age ${max_age_days}d)."
 else
-    echo "Removed ${removed_count} old Maven-local version directories for ${project_group} under ${artifacts_root} (keep ${keep_versions}, max age ${max_age_days}d)."
+    echo "Removed ${removed_count} old Maven-local version directories for ${project_group} under ${display_artifacts_root} (keep ${keep_versions}, max age ${max_age_days}d)."
 fi

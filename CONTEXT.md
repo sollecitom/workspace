@@ -36,8 +36,8 @@ Published internal versions are discovered locally through `mavenLocal()`. Works
 Workflow invariants:
 
 - `just execute ...` is the source of truth for composed workspace flows
-- `workspace` and publishable/library repos must complete the requested steps sequentially
-- non-library/service repos may run in parallel, but each repo still executes its own steps in order
+- workspace flows run sequentially in dependency order across all repos
+- each repo still executes its own requested steps in order
 - internal-only flows use `update-internal`; full flows use `update`
 
 ## Build System
@@ -64,11 +64,9 @@ Workflow invariants:
 | `just update-all` | Repo-local internal update + external version update + wrapper update |
 | `just update-java-workspace` | Targeted machine-level Temurin update from the workspace root |
 
-Current workspace pipeline parallelism:
-- `workspace` plus publishable producer repos run serially
-- independent consumer repos may run in parallel
+Current workspace pipeline execution:
+- workspace flows run sequentially in dependency order across all repos
 - within any single repo, requested steps still run sequentially
-- default consumer parallelism is `2`, configurable via `WORKSPACE_MAX_PARALLEL_CONSUMERS`
 
 ## Build Troubleshooting
 
