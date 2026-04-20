@@ -24,6 +24,9 @@ rebuild:
 update-all:
     @:
 
+cleanup:
+    @:
+
 @check-workspace-requirements:
     bash ./scripts/ensure-workspace-requirements.sh check
 
@@ -54,6 +57,24 @@ update-all:
 
 @build-workspace:
     bash ./scripts/workspace.sh build '{{workspace_and_modules}}'
+
+@publish-workspace:
+    bash ./scripts/workspace.sh publish '{{workspace_and_modules}}' '{{publishable}}'
+
+@cleanup-workspace:
+    bash ./scripts/workspace.sh cleanup '{{workspace_and_modules}}'
+
+@refresh-workspace:
+    just execute pull update build publish cleanup
+
+@refresh-local-workspace:
+    just execute build publish cleanup
+
+@execute +steps:
+    bash ./scripts/workspace.sh execute '{{workspace_and_modules}}' '{{publishable}}' {{steps}}
+
+@workflow-workspace +steps:
+    just execute {{steps}}
 
 @install-workspace:
     bash ./scripts/workspace.sh install '{{all_modules}}'

@@ -47,6 +47,10 @@ Published internal versions are discovered locally through `mavenLocal()`. Works
 | `just build` | Build a single project |
 | `just build-workspace` | Internal-only workspace update plus build/publish in dependency order |
 | `just update-workspace` | Pull, update internal/external versions, then conditionally build changed repos |
+| `just refresh-workspace` | Alias for the full workspace refresh flow: pull, update, build/publish, cleanup |
+| `just refresh-local-workspace` | Alias for the local-only workspace flow: internal update, build/publish, cleanup |
+| `just cleanup-workspace` | Clean old workspace-owned Maven-local artifacts using per-repo retention rules |
+| `just workflow-workspace ...` | Compose workspace recipes explicitly, for example `just workflow-workspace pull cleanup` |
 | `just publish` | Publish internal producer outputs to `mavenLocal()` when changed |
 | `just update-all` | Repo-local internal update + external version update + wrapper update |
 | `just push-workspace` | Git push all projects |

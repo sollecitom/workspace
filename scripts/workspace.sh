@@ -451,92 +451,230 @@ collect_module_summary() {
     fi
 }
 
+run_cleanup_pass() {
+    local modules_to_clean="$1"
+
+    for module in $modules_to_clean; do
+        print_header "Cleaning" "$module"
+        cd_module "$module"
+        just cleanup
+        echo "✓ $module cleaned successfully"
+    done
+}
+
+commit_wip_if_needed() {
+    git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
+}
+
+append_module_summary() {
+    local target_file="$1"
+    local module="$2"
+    local module_summary="$3"
+    local empty_message="$4"
+
+    if printf '%s\n' "$module_summary" | grep -q '[^[:space:]]'; then
+        echo "$module" >> "$target_file"
+        while IFS= read -r line; do
+            [ -n "$line" ] || continue
+            printf '  %s\n' "$line" >> "$target_file"
+        done <<< "$module_summary"
+    else
+        echo "$module: $empty_message" >> "$target_file"
+    fi
+}
+
+print_summary_box() {
+    local title="$1"
+    local empty_message="$2"
+
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════════════════════"
+    echo "║ $title"
+    echo "╠══════════════════════════════════════════════════════════════════════════════"
+    if [ -s "$summary_file" ]; then
+        echo "║"
+        while IFS= read -r line; do
+            if [[ "$line" != " "* ]]; then
+                echo "║ ▸ $line"
+            else
+                echo "║  $line"
+            fi
+        done < "$summary_file"
+        echo "║"
+    else
+        echo "║"
+        echo "║  $empty_message"
+        echo "║"
+    fi
+    echo "╚══════════════════════════════════════════════════════════════════════════════"
+    echo ""
+}
+
+module_is_publishable() {
+    [[ " $publishable_modules " =~ " $1 " ]]
+}
+
+run_module_pull() {
+    local module="$1"
+    print_header "Pulling" "$module"
+    cd_module "$module"
+    commit_wip_if_needed
+    just pull
+    echo "✓ $module pulled successfully"
+}
+
+run_module_update() {
+    local module="$1"
+    local keep_state="${2:-0}"
+
+    print_header "Updating" "$module"
+    cd_module "$module"
+    prepare_base_image_policy
+    WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" just update-all
+    if [ -n "$summary_file" ]; then
+        module_summary=$(collect_module_summary)
+        append_module_summary "$summary_file" "$module" "$module_summary" "No dependencies were updated."
+    fi
+    if [ "$keep_state" -eq 0 ]; then
+        clear_workspace_events
+        reset_base_image_state
+    fi
+    echo "✓ $module updated successfully"
+}
+
+run_module_build() {
+    local module="$1"
+    local keep_state="${2:-0}"
+
+    print_header "Building" "$module"
+    cd_module "$module"
+    if just build; then
+        :
+    elif apply_base_image_fallback; then
+        just build
+    else
+        restore_base_image_files
+        exit 1
+    fi
+    if [ -n "$summary_file" ]; then
+        module_summary=$(collect_module_summary)
+        append_module_summary "$summary_file" "$module" "$module_summary" "No build-triggered dependency changes detected."
+    fi
+    if [ "$keep_state" -eq 0 ]; then
+        clear_workspace_events
+        reset_base_image_state
+    fi
+    echo "✓ $module built successfully"
+}
+
+run_module_publish() {
+    local module="$1"
+    print_header "Publishing" "$module"
+    cd_module "$module"
+    if module_is_publishable "$module"; then
+        just publish
+        echo "✓ $module published successfully"
+    else
+        echo "Skipping publish for $module; not a publishable module."
+    fi
+}
+
+run_execute_pipeline() {
+    shift 3
+    local steps=("$@")
+
+    for module in $modules; do
+        local has_pending_base_image_state=0
+
+        for step in "${steps[@]}"; do
+            case "$step" in
+                pull)
+                    run_module_pull "$module"
+                    ;;
+                update)
+                    has_pending_base_image_state=1
+                    run_module_update "$module" 1
+                    ;;
+                build)
+                    if [ "$has_pending_base_image_state" -eq 1 ]; then
+                        run_module_build "$module" 1
+                    else
+                        run_module_build "$module"
+                    fi
+                    ;;
+                publish)
+                    run_module_publish "$module"
+                    ;;
+                cleanup)
+                    if [ "$has_pending_base_image_state" -eq 1 ]; then
+                        clear_workspace_events
+                        reset_base_image_state
+                        has_pending_base_image_state=0
+                    fi
+                    run_module_cleanup "$module"
+                    ;;
+                *)
+                    echo "Unsupported workspace pipeline step: $step" >&2
+                    exit 1
+                    ;;
+            esac
+        done
+
+        if [ "$has_pending_base_image_state" -eq 1 ]; then
+            clear_workspace_events
+            reset_base_image_state
+        fi
+    done
+}
+
+run_module_cleanup() {
+    local module="$1"
+    print_header "Cleaning" "$module"
+    cd_module "$module"
+    just cleanup
+    echo "✓ $module cleaned successfully"
+}
+
 case "$command_name" in
     update)
         ensure_workspace_requirements update
         summary_file=$(mktemp)
         for module in $modules; do
-            local_pre_pull_head=""
-            local_post_pull_head=""
-            build_reason=""
-            print_header "Updating" "$module"
-            cd_module "$module"
-            git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
-            local_pre_pull_head=$(repo_head)
-            just pull
-            local_post_pull_head=$(repo_head)
-            prepare_base_image_policy
-            WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" just update-all
-            if build_reason=$(update_build_reason "$local_pre_pull_head" "$local_post_pull_head"); then
-                echo "Running standalone build for $module; $build_reason."
-                if just build; then
-                    :
-                elif apply_base_image_fallback; then
-                    just build
-                else
-                    restore_base_image_files
-                    exit 1
-                fi
-            else
-                echo "Skipping standalone build for $module; no pulled commits or repo changes."
-            fi
-            module_summary=$(collect_module_summary)
-            if printf '%s\n' "$module_summary" | grep -q '[^[:space:]]'; then
-                echo "$module" >> "$summary_file"
-                while IFS= read -r line; do
-                    [ -n "$line" ] || continue
-                    printf '  %s\n' "$line" >> "$summary_file"
-                done <<< "$module_summary"
-            else
-                echo "$module: No dependencies were updated." >> "$summary_file"
-            fi
-            clear_workspace_events
-            reset_base_image_state
-            echo "✓ $module updated successfully"
+            run_module_update "$module"
         done
-
-        echo ""
-        echo "╔══════════════════════════════════════════════════════════════════════════════"
-        echo "║ UPDATE SUMMARY"
-        echo "╠══════════════════════════════════════════════════════════════════════════════"
-        if [ -s "$summary_file" ]; then
-            echo "║"
-            while IFS= read -r line; do
-                if [[ "$line" != " "* ]]; then
-                    echo "║ ▸ $line"
-                else
-                    echo "║  $line"
-                fi
-            done < "$summary_file"
-            echo "║"
-        else
-            echo "║"
-            echo "║  No upgrade-related changes detected."
-            echo "║"
-        fi
-        echo "╚══════════════════════════════════════════════════════════════════════════════"
-        echo ""
+        print_summary_box "UPDATE SUMMARY" "No upgrade-related changes detected."
         echo "✓ All modules updated successfully!"
         ;;
-    pull|reset|push|rebuild|build)
+    pull|reset|push|rebuild|build|cleanup|publish)
         if [ "$command_name" = "build" ]; then
             summary_file=$(mktemp)
         fi
+        if [ "$command_name" = "cleanup" ]; then
+            run_cleanup_pass "$modules"
+            echo ""
+            echo "✓ All modules cleaned successfully!"
+            exit 0
+        fi
         for module in $modules; do
             case "$command_name" in
-                pull) print_header "Pulling" "$module" ;;
+                pull)
+                    run_module_pull "$module"
+                    continue
+                    ;;
                 reset) print_header "Resetting" "$module" ;;
                 push) print_header "Pushing" "$module" ;;
                 rebuild) print_header "Rebuilding" "$module" ;;
-                build) print_header "Building" "$module" ;;
+                build)
+                    run_module_build "$module"
+                    continue
+                    ;;
+                publish)
+                    run_module_publish "$module"
+                    continue
+                    ;;
             esac
             cd_module "$module"
             case "$command_name" in
-                pull)
-                    git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
-                    just pull
-                    just build
-                    ;;
                 reset)
                     git clean -fdx && git reset --hard
                     just build
@@ -547,17 +685,6 @@ case "$command_name" in
                 rebuild)
                     just rebuild
                     ;;
-                build)
-                    just build
-                    module_summary=$(collect_module_summary)
-                    if printf '%s\n' "$module_summary" | grep -q '[^[:space:]]'; then
-                        echo "$module" >> "$summary_file"
-                        while IFS= read -r line; do
-                            [ -n "$line" ] || continue
-                            printf '  %s\n' "$line" >> "$summary_file"
-                        done <<< "$module_summary"
-                    fi
-                    ;;
             esac
             echo "✓ $module ${command_name}ed successfully"
         done
@@ -567,30 +694,17 @@ case "$command_name" in
             reset) echo "✓ All modules reset successfully!" ;;
             push) echo "✓ All modules pushed successfully!" ;;
             rebuild) echo "✓ All modules rebuilt successfully!" ;;
+            publish) echo "✓ All publishable modules published successfully!" ;;
             build)
-                echo "╔══════════════════════════════════════════════════════════════════════════════"
-                echo "║ BUILD SUMMARY"
-                echo "╠══════════════════════════════════════════════════════════════════════════════"
-                if [ -s "$summary_file" ]; then
-                    echo "║"
-                    while IFS= read -r line; do
-                        if [[ "$line" != " "* ]]; then
-                            echo "║ ▸ $line"
-                        else
-                            echo "║  $line"
-                        fi
-                    done < "$summary_file"
-                    echo "║"
-                else
-                    echo "║"
-                    echo "║  No build-triggered dependency changes detected."
-                    echo "║"
-                fi
-                echo "╚══════════════════════════════════════════════════════════════════════════════"
-                echo ""
+                print_summary_box "BUILD SUMMARY" "No build-triggered dependency changes detected."
                 echo "✓ All modules built successfully!"
                 ;;
         esac
+        ;;
+    execute)
+        run_execute_pipeline "$@"
+        echo ""
+        echo "✓ Workspace pipeline completed successfully!"
         ;;
     build-and-publish)
         for module in $modules; do

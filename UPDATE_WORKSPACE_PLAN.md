@@ -418,9 +418,21 @@ Progress:
 2.4 [x] Verify that `versionCatalogUpdate` can detect newer locally published versions from `mavenLocal()` and rewrite the catalogs correctly.
 Progress:
 Confirmed end to end: after publishing `gradle-plugins` `1.0.4` locally, downstream repos rewrote `sollecitom-gradle-plugins = 1.0.3` to `1.0.4` through the normal update flow. Confirmed limitation remains: if the declared version is missing locally, the plugin falls into its `invalid/exceeded` path and only warns. The internal-only updater covers that bootstrap gap.
-2.5 [ ] Implement per-repo `just cleanup` commands for workspace-owned Maven-local artifacts, preserving a small rollback window.
-2.6 [ ] Add `just cleanup-workspace` at the workspace root to delegate to each repo’s cleanup command.
-2.7 [ ] Decide whether Maven-local cleanup remains explicit or becomes part of another workflow later.
+2.5 [x] Implement per-repo `just cleanup` commands for workspace-owned Maven-local artifacts, preserving a small rollback window.
+Progress:
+Every repo now exposes `just cleanup`, backed by the shared `scripts/cleanup-maven-local.sh` helper. Each repo sets its own retention policy through the recipe arguments (`--keep` and `--max-age-days`), with publishable libraries currently keeping a larger rollback window than consumer repos.
+2.6 [x] Add `just cleanup-workspace` at the workspace root to delegate to each repo’s cleanup command.
+Progress:
+The root workspace now exposes `just cleanup-workspace`, and `scripts/workspace.sh` has a dedicated `cleanup` command that runs `just cleanup` across the workspace modules.
+2.7 [x] Decide whether Maven-local cleanup remains explicit or becomes part of another workflow later.
+Progress:
+Cleanup now has both forms:
+- explicit via `just cleanup` and `just cleanup-workspace`
+- integrated at the end of `just update-workspace` and `just build-workspace`
+Additional workflow aliases now exist at the workspace layer so the main commands remain:
+- `just refresh-workspace` for pull + update + build/publish + cleanup
+- `just refresh-local-workspace` for internal-only build/publish + cleanup
+- `just workflow-workspace ...` for explicit composition of workspace commands
 
 3. **Reproducibility**
 3.1 [x] Audit published library artifacts, manifests, and archive settings so unchanged inputs produce byte-identical outputs.
@@ -517,7 +529,7 @@ None at the moment. `swissknife` is the only repo with repo-local container imag
    - keep producers serialized
    - parallelize only the consumer wave
    - start with `max_parallel_consumers=2`
-2.3 [ ] Add Maven-local cleanup commands:
+2.3 [x] Add Maven-local cleanup commands:
    - per-repo `just cleanup`
    - workspace `just cleanup-workspace`
    - preserve a small rollback window
