@@ -522,7 +522,6 @@ None at the moment. `swissknife` is the only repo with repo-local container imag
    - per-repo `just cleanup`
    - workspace `just execute cleanup`
    - preserve a small rollback window
-2.3 [ ] Decide whether repo-local update scripts should share a tiny helper convention for emitting workspace summary events, or continue using a simple environment-file contract.
 
 ## Success Criteria
 

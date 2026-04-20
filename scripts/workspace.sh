@@ -6,6 +6,8 @@ modules="${2:-}"
 publishable_modules="${3:-}"
 start_dir="$(pwd)"
 summary_file=""
+pipeline_update_summary_file=""
+pipeline_internal_update_summary_file=""
 workspace_events_file=""
 base_image_policy_active=0
 base_image_follow_latest=0
@@ -32,6 +34,12 @@ cleanup() {
     cd "$start_dir"
     if [ -n "$summary_file" ]; then
         rm -f "$summary_file"
+    fi
+    if [ -n "$pipeline_update_summary_file" ]; then
+        rm -f "$pipeline_update_summary_file"
+    fi
+    if [ -n "$pipeline_internal_update_summary_file" ]; then
+        rm -f "$pipeline_internal_update_summary_file"
     fi
     if [ -n "$workspace_events_file" ]; then
         rm -f "$workspace_events_file"
@@ -680,6 +688,20 @@ execute_requires_workspace_requirements() {
     return 1
 }
 
+pipeline_includes_step() {
+    local expected_step="$1"
+    shift
+    local step
+
+    for step in "$@"; do
+        if [ "$step" = "$expected_step" ]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
 run_module_pipeline() {
     local module="$1"
     shift
@@ -687,21 +709,23 @@ run_module_pipeline() {
     local step
     local has_pending_base_image_state=0
 
-    summary_file=""
-
     for step in "${steps[@]}"; do
         case "$step" in
             pull)
+                summary_file=""
                 run_module_pull "$module"
                 ;;
             update)
                 has_pending_base_image_state=1
+                summary_file="$pipeline_update_summary_file"
                 run_module_update "$module" 1
                 ;;
             update-internal)
+                summary_file="$pipeline_internal_update_summary_file"
                 run_module_update_internal "$module"
                 ;;
             build)
+                summary_file=""
                 if [ "$has_pending_base_image_state" -eq 1 ]; then
                     run_module_build "$module" 1
                 else
@@ -709,6 +733,7 @@ run_module_pipeline() {
                 fi
                 ;;
             rebuild)
+                summary_file=""
                 if [ "$has_pending_base_image_state" -eq 1 ]; then
                     run_module_rebuild "$module" 1
                 else
@@ -716,12 +741,15 @@ run_module_pipeline() {
                 fi
                 ;;
             publish)
+                summary_file=""
                 run_module_publish "$module"
                 ;;
             push)
+                summary_file=""
                 run_module_push "$module"
                 ;;
             cleanup)
+                summary_file=""
                 if [ "$has_pending_base_image_state" -eq 1 ]; then
                     clear_workspace_events
                     reset_base_image_state
@@ -746,14 +774,35 @@ run_execute_pipeline() {
     shift 3
     local steps=("$@")
     local module
+    local original_summary_file="$summary_file"
 
     if execute_requires_workspace_requirements "${steps[@]}"; then
         ensure_workspace_requirements update
     fi
 
+    pipeline_update_summary_file=""
+    pipeline_internal_update_summary_file=""
+    if pipeline_includes_step update "${steps[@]}"; then
+        pipeline_update_summary_file=$(mktemp)
+    fi
+    if pipeline_includes_step update-internal "${steps[@]}"; then
+        pipeline_internal_update_summary_file=$(mktemp)
+    fi
+
     for module in $modules; do
         run_module_pipeline "$module" "${steps[@]}"
     done
+
+    if [ -n "$pipeline_update_summary_file" ]; then
+        summary_file="$pipeline_update_summary_file"
+        print_summary_box "UPDATE SUMMARY" "No upgrade-related changes detected."
+    fi
+    if [ -n "$pipeline_internal_update_summary_file" ]; then
+        summary_file="$pipeline_internal_update_summary_file"
+        print_summary_box "INTERNAL UPDATE SUMMARY" "No internal dependency changes detected."
+    fi
+
+    summary_file="$original_summary_file"
 }
 
 case "$command_name" in
