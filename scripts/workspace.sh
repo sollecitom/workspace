@@ -7,6 +7,7 @@ publishable_modules="${3:-}"
 start_dir="$(pwd)"
 summary_file=""
 workspace_events_file=""
+max_parallel_consumers="${WORKSPACE_MAX_PARALLEL_CONSUMERS:-2}"
 base_image_policy_active=0
 base_image_follow_latest=0
 base_image_fallback_allowed=0
@@ -455,10 +456,7 @@ run_cleanup_pass() {
     local modules_to_clean="$1"
 
     for module in $modules_to_clean; do
-        print_header "Cleaning" "$module"
-        cd_module "$module"
-        just cleanup
-        echo "✓ $module cleaned successfully"
+        run_module_cleanup "$module"
     done
 }
 
@@ -514,6 +512,13 @@ module_is_publishable() {
     [[ " $publishable_modules " =~ " $1 " ]]
 }
 
+reset_summary_file() {
+    if [ -n "$summary_file" ] && [ -f "$summary_file" ]; then
+        rm -f "$summary_file"
+    fi
+    summary_file=$(mktemp)
+}
+
 run_module_pull() {
     local module="$1"
     print_header "Pulling" "$module"
@@ -567,15 +572,23 @@ run_module_build() {
     echo "✓ $module built successfully"
 }
 
+run_module_rebuild() {
+    local module="$1"
+    print_header "Rebuilding" "$module"
+    cd_module "$module"
+    just rebuild
+    echo "✓ $module rebuilt successfully"
+}
+
 run_module_publish() {
     local module="$1"
     print_header "Publishing" "$module"
     cd_module "$module"
-    if module_is_publishable "$module"; then
+    if just --summary 2>/dev/null | tr ' ' '\n' | grep -Fxq publish; then
         just publish
         echo "✓ $module published successfully"
     else
-        echo "Skipping publish for $module; not a publishable module."
+        echo "Skipping publish for $module; no publish recipe."
     fi
 }
 
@@ -587,57 +600,6 @@ run_module_push() {
     echo "✓ $module pushed successfully"
 }
 
-run_execute_pipeline() {
-    shift 3
-    local steps=("$@")
-
-    for module in $modules; do
-        local has_pending_base_image_state=0
-
-        for step in "${steps[@]}"; do
-            case "$step" in
-                pull)
-                    run_module_pull "$module"
-                    ;;
-                update)
-                    has_pending_base_image_state=1
-                    run_module_update "$module" 1
-                    ;;
-                build)
-                    if [ "$has_pending_base_image_state" -eq 1 ]; then
-                        run_module_build "$module" 1
-                    else
-                        run_module_build "$module"
-                    fi
-                    ;;
-                publish)
-                    run_module_publish "$module"
-                    ;;
-                push)
-                    run_module_push "$module"
-                    ;;
-                cleanup)
-                    if [ "$has_pending_base_image_state" -eq 1 ]; then
-                        clear_workspace_events
-                        reset_base_image_state
-                        has_pending_base_image_state=0
-                    fi
-                    run_module_cleanup "$module"
-                    ;;
-                *)
-                    echo "Unsupported workspace pipeline step: $step" >&2
-                    exit 1
-                    ;;
-            esac
-        done
-
-        if [ "$has_pending_base_image_state" -eq 1 ]; then
-            clear_workspace_events
-            reset_base_image_state
-        fi
-    done
-}
-
 run_module_cleanup() {
     local module="$1"
     print_header "Cleaning" "$module"
@@ -646,43 +608,380 @@ run_module_cleanup() {
     echo "✓ $module cleaned successfully"
 }
 
+consumer_modules_from_list() {
+    local consumer_modules=""
+    local module
+
+    for module in $modules; do
+        if [ "$module" = "workspace" ]; then
+            continue
+        fi
+        if ! module_is_publishable "$module"; then
+            consumer_modules="${consumer_modules} ${module}"
+        fi
+    done
+
+    printf '%s\n' "$consumer_modules"
+}
+
+consumer_modules_supporting_recipe() {
+    local recipe="$1"
+    local consumer_modules=""
+    local module
+
+    for module in $modules; do
+        if [ "$module" = "workspace" ]; then
+            continue
+        fi
+        if module_is_publishable "$module"; then
+            continue
+        fi
+        cd_module "$module"
+        if just --summary 2>/dev/null | tr ' ' '\n' | grep -Fxq "$recipe"; then
+            consumer_modules="${consumer_modules} ${module}"
+        fi
+    done
+
+    cd "$start_dir"
+
+    printf '%s\n' "$consumer_modules"
+}
+
+wait_for_parallel_slot() {
+    while [ "$(jobs -pr | wc -l | tr -d ' ')" -ge "$max_parallel_consumers" ]; do
+        sleep 0.2
+    done
+}
+
+run_parallel_consumer_builds() {
+    local consumer_modules="$1"
+    local results_dir
+    local failure=0
+    local module
+
+    [ -n "${consumer_modules// }" ] || return 0
+
+    results_dir=$(mktemp -d)
+    echo "Running independent consumer builds in parallel (max ${max_parallel_consumers})..."
+
+    for module in $consumer_modules; do
+        wait_for_parallel_slot
+        (
+            cd_module "$module"
+            if just build >"$results_dir/${module}.log" 2>&1; then
+                collect_module_summary >"$results_dir/${module}.summary" || true
+                printf '0' > "$results_dir/${module}.exit"
+            else
+                printf '%s' "$?" > "$results_dir/${module}.exit"
+            fi
+        ) &
+    done
+
+    wait || true
+
+    for module in $consumer_modules; do
+        module_exit="$(cat "$results_dir/${module}.exit" 2>/dev/null || printf '1')"
+        if [ "$module_exit" -ne 0 ]; then
+            print_header "Build failed for" "$module"
+            cat "$results_dir/${module}.log"
+            failure=1
+            continue
+        fi
+
+        if [ -n "$summary_file" ]; then
+            module_summary="$(cat "$results_dir/${module}.summary" 2>/dev/null || true)"
+            append_module_summary "$summary_file" "$module" "$module_summary" "No build-triggered dependency changes detected."
+        fi
+        echo "✓ $module built successfully"
+    done
+
+    rm -rf "$results_dir"
+
+    if [ "$failure" -ne 0 ]; then
+        exit 1
+    fi
+}
+
+run_parallel_consumer_rebuilds() {
+    local consumer_modules="$1"
+    local results_dir
+    local failure=0
+    local module
+
+    [ -n "${consumer_modules// }" ] || return 0
+
+    results_dir=$(mktemp -d)
+    echo "Running independent consumer rebuilds in parallel (max ${max_parallel_consumers})..."
+
+    for module in $consumer_modules; do
+        wait_for_parallel_slot
+        (
+            cd_module "$module"
+            if just rebuild >"$results_dir/${module}.log" 2>&1; then
+                printf '0' > "$results_dir/${module}.exit"
+            else
+                printf '%s' "$?" > "$results_dir/${module}.exit"
+            fi
+        ) &
+    done
+
+    wait || true
+
+    for module in $consumer_modules; do
+        module_exit="$(cat "$results_dir/${module}.exit" 2>/dev/null || printf '1')"
+        if [ "$module_exit" -ne 0 ]; then
+            print_header "Rebuild failed for" "$module"
+            cat "$results_dir/${module}.log"
+            failure=1
+            continue
+        fi
+
+        echo "✓ $module rebuilt successfully"
+    done
+
+    rm -rf "$results_dir"
+
+    if [ "$failure" -ne 0 ]; then
+        exit 1
+    fi
+}
+
+run_parallel_consumer_modules() {
+    local consumer_modules="$1"
+    local module_function="$2"
+    local phase_name="$3"
+    local success_verb="$4"
+    local results_dir
+    local failure=0
+    local module
+
+    [ -n "${consumer_modules// }" ] || return 0
+
+    results_dir=$(mktemp -d)
+    echo "Running independent consumer ${phase_name,,} in parallel (max ${max_parallel_consumers})..."
+
+    for module in $consumer_modules; do
+        wait_for_parallel_slot
+        (
+            if "$module_function" "$module" >"$results_dir/${module}.log" 2>&1; then
+                printf '0' > "$results_dir/${module}.exit"
+            else
+                printf '%s' "$?" > "$results_dir/${module}.exit"
+            fi
+        ) &
+    done
+
+    wait || true
+
+    for module in $consumer_modules; do
+        module_exit="$(cat "$results_dir/${module}.exit" 2>/dev/null || printf '1')"
+        if [ "$module_exit" -ne 0 ]; then
+            print_header "${phase_name} failed for" "$module"
+            cat "$results_dir/${module}.log"
+            failure=1
+            continue
+        fi
+
+        echo "✓ $module ${success_verb} successfully"
+    done
+
+    rm -rf "$results_dir"
+
+    if [ "$failure" -ne 0 ]; then
+        exit 1
+    fi
+}
+
+run_step_pull() {
+    local module
+    local consumer_modules
+
+    for module in $modules; do
+        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
+            run_module_pull "$module"
+        fi
+    done
+
+    consumer_modules="$(consumer_modules_from_list)"
+    run_parallel_consumer_modules "$consumer_modules" run_module_pull "Pull" "pulled"
+
+    echo ""
+    echo "✓ All modules pulled successfully!"
+}
+
+run_step_update() {
+    local module
+    reset_summary_file
+    for module in $modules; do
+        run_module_update "$module"
+    done
+    print_summary_box "UPDATE SUMMARY" "No upgrade-related changes detected."
+    echo "✓ All modules updated successfully!"
+}
+
+run_step_build() {
+    local module
+    local consumer_modules
+
+    reset_summary_file
+
+    for module in $modules; do
+        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
+            run_module_build "$module"
+        fi
+    done
+
+    consumer_modules="$(consumer_modules_from_list)"
+    run_parallel_consumer_builds "$consumer_modules"
+
+    print_summary_box "BUILD SUMMARY" "No build-triggered dependency changes detected."
+    echo "✓ All modules built successfully!"
+}
+
+run_step_rebuild() {
+    local module
+    local consumer_modules
+
+    for module in $modules; do
+        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
+            run_module_rebuild "$module"
+        fi
+    done
+
+    consumer_modules="$(consumer_modules_from_list)"
+    run_parallel_consumer_rebuilds "$consumer_modules"
+
+    echo "✓ All modules rebuilt successfully!"
+}
+
+run_step_publish() {
+    local module
+    local consumer_modules
+
+    for module in $modules; do
+        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
+            run_module_publish "$module"
+        fi
+    done
+
+    consumer_modules="$(consumer_modules_supporting_recipe publish)"
+    run_parallel_consumer_modules "$consumer_modules" run_module_publish "Publish" "published"
+
+    echo ""
+    echo "✓ All module publish steps completed successfully!"
+}
+
+run_step_cleanup() {
+    local module
+    local cleanup_modules
+
+    for module in $modules; do
+        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
+            run_module_cleanup "$module"
+        fi
+    done
+
+    cleanup_modules="$(consumer_modules_from_list)"
+    run_parallel_consumer_modules "$cleanup_modules" run_module_cleanup "Cleanup" "cleaned"
+
+    echo ""
+    echo "✓ All modules cleaned successfully!"
+}
+
+run_step_push() {
+    local module
+    for module in $modules; do
+        run_module_push "$module"
+    done
+    echo ""
+    echo "✓ All modules pushed successfully!"
+}
+
+execute_requires_workspace_requirements() {
+    local step
+    for step in "$@"; do
+        case "$step" in
+            pull|update|build|publish|rebuild|reset)
+                return 0
+                ;;
+        esac
+    done
+    return 1
+}
+
+run_execute_pipeline() {
+    shift 3
+    local steps=("$@")
+    local step
+
+    if execute_requires_workspace_requirements "${steps[@]}"; then
+        ensure_workspace_requirements update
+    fi
+
+    for step in "${steps[@]}"; do
+        case "$step" in
+            pull)
+                run_step_pull
+                ;;
+            update)
+                run_step_update
+                ;;
+            build)
+                run_step_build
+                ;;
+            rebuild)
+                run_step_rebuild
+                ;;
+            publish)
+                run_step_publish
+                ;;
+            push)
+                run_step_push
+                ;;
+            cleanup)
+                run_step_cleanup
+                ;;
+            *)
+                echo "Unsupported workspace pipeline step: $step" >&2
+                exit 1
+                ;;
+        esac
+    done
+}
+
 case "$command_name" in
     update)
         ensure_workspace_requirements update
-        summary_file=$(mktemp)
-        for module in $modules; do
-            run_module_update "$module"
-        done
-        print_summary_box "UPDATE SUMMARY" "No upgrade-related changes detected."
-        echo "✓ All modules updated successfully!"
+        run_step_update
         ;;
     pull|reset|push|rebuild|build|cleanup|publish)
-        if [ "$command_name" = "build" ]; then
-            summary_file=$(mktemp)
-        fi
         if [ "$command_name" = "cleanup" ]; then
-            run_cleanup_pass "$modules"
-            echo ""
-            echo "✓ All modules cleaned successfully!"
+            run_step_cleanup
+            exit 0
+        fi
+        if [ "$command_name" = "pull" ]; then
+            run_step_pull
+            exit 0
+        fi
+        if [ "$command_name" = "build" ]; then
+            run_step_build
+            exit 0
+        fi
+        if [ "$command_name" = "rebuild" ]; then
+            run_step_rebuild
+            exit 0
+        fi
+        if [ "$command_name" = "publish" ]; then
+            run_step_publish
+            exit 0
+        fi
+        if [ "$command_name" = "push" ]; then
+            run_step_push
             exit 0
         fi
         for module in $modules; do
             case "$command_name" in
-                pull)
-                    run_module_pull "$module"
-                    continue
-                    ;;
                 reset) print_header "Resetting" "$module" ;;
-                push) print_header "Pushing" "$module" ;;
-                rebuild) print_header "Rebuilding" "$module" ;;
-                build)
-                    run_module_build "$module"
-                    continue
-                    ;;
-                publish)
-                    run_module_publish "$module"
-                    continue
-                    ;;
             esac
             cd_module "$module"
             case "$command_name" in
@@ -690,26 +989,12 @@ case "$command_name" in
                     git clean -fdx && git reset --hard
                     just build
                     ;;
-                push)
-                    just push
-                    ;;
-                rebuild)
-                    just rebuild
-                    ;;
             esac
             echo "✓ $module ${command_name}ed successfully"
         done
         echo ""
         case "$command_name" in
-            pull) echo "✓ All modules pulled successfully!" ;;
             reset) echo "✓ All modules reset successfully!" ;;
-            push) echo "✓ All modules pushed successfully!" ;;
-            rebuild) echo "✓ All modules rebuilt successfully!" ;;
-            publish) echo "✓ All publishable modules published successfully!" ;;
-            build)
-                print_summary_box "BUILD SUMMARY" "No build-triggered dependency changes detected."
-                echo "✓ All modules built successfully!"
-                ;;
         esac
         ;;
     execute)

@@ -54,6 +54,11 @@ Published internal versions are discovered locally through `mavenLocal()`. Works
 | `just push-workspace` | Git push all projects |
 | `just update-java-workspace` | Targeted machine-level Temurin update from the workspace root |
 
+Current workspace build parallelism:
+- `workspace` plus publishable producer repos build serially
+- independent consumer repos then build in parallel
+- default consumer parallelism is `2`, configurable via `WORKSPACE_MAX_PARALLEL_CONSUMERS`
+
 ## Build Troubleshooting
 
 ### Gradle Lock / Daemon Issues
