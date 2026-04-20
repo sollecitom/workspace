@@ -42,58 +42,69 @@ if ! docker info >/dev/null 2>&1; then
     exit 0
 fi
 
-image_listing="$(docker image ls --format '{{.Repository}}\t{{.Tag}}\t{{.ID}}')"
+image_listing="$(docker image ls --no-trunc --format '{{.Repository}}\t{{.Tag}}\t{{.ID}}')"
 
 cleanup_repository() {
     local repository="$1"
-    local tags_to_remove=""
+    local refs_file
+    local unique_ids_file
+    local dated_ids_file
+    local kept_ids_file
+    local tags_to_remove_file
     local remove_count="0"
+    local inspect_ids
+    local image_ref
+    local image_id
 
-    tags_to_remove="$(
-        printf '%s\n' "$image_listing" | awk -F'\t' -v repository="$repository" -v keep="$keep_images" '
-            $1 == repository && $2 != "<none>" {
-                tag = $2
-                image_id = $3
+    refs_file=$(mktemp)
+    unique_ids_file=$(mktemp)
+    dated_ids_file=$(mktemp)
+    kept_ids_file=$(mktemp)
+    tags_to_remove_file=$(mktemp)
 
-                if (!(image_id in seen)) {
-                    seen[image_id] = 1
-                    unique_count++
-                    if (unique_count <= keep) {
-                        kept[image_id] = 1
-                    }
-                }
+    printf '%s\n' "$image_listing" \
+        | awk -F'\t' -v repository="$repository" '$1 == repository && $2 != "<none>" { print $0 }' > "$refs_file"
 
-                if (!(image_id in kept)) {
-                    print repository ":" tag
-                }
-            }
-        '
-    )"
-
-    if [ -z "$tags_to_remove" ]; then
-        if printf '%s\n' "$image_listing" | awk -F'\t' -v repository="$repository" '$1 == repository && $2 != "<none>" { found = 1 } END { exit found ? 0 : 1 }'; then
-            echo "No Docker cleanup needed for ${repository} (keeping latest ${keep_images} image ids)."
-        else
-            echo "No local Docker tags matched ${repository}; nothing to clean."
-        fi
+    if [ ! -s "$refs_file" ]; then
+        rm -f "$refs_file" "$unique_ids_file" "$dated_ids_file" "$kept_ids_file" "$tags_to_remove_file"
+        echo "No local Docker tags matched ${repository}; nothing to clean."
         return 0
     fi
 
-    remove_count="$(printf '%s\n' "$tags_to_remove" | awk 'NF { count++ } END { print count + 0 }')"
+    awk -F'\t' '{ print $3 }' "$refs_file" | awk '!seen[$0]++' > "$unique_ids_file"
+
+    inspect_ids="$(tr '\n' ' ' < "$unique_ids_file" | sed 's/[[:space:]]*$//')"
+    if [ -n "$inspect_ids" ]; then
+        # Docker returns one formatted line per inspected image; using --no-trunc
+        # keeps ids stable between `docker image ls` and `docker image inspect`.
+        docker image inspect $inspect_ids --format '{{.Id}}\t{{.Created}}' \
+            | awk -F'\t' '{ print $2 "\t" $1 }' > "$dated_ids_file"
+    fi
+
+    sort -r "$dated_ids_file" | awk -F'\t' -v keep="$keep_images" 'NR <= keep { print $2 }' > "$kept_ids_file"
+
+    while IFS=$'\t' read -r _repo tag image_id; do
+        [ -n "$tag" ] || continue
+        if ! grep -Fxq "$image_id" "$kept_ids_file"; then
+            printf '%s:%s\n' "$repository" "$tag" >> "$tags_to_remove_file"
+        fi
+    done < "$refs_file"
+
+    remove_count="$(awk 'NF { count++ } END { print count + 0 }' "$tags_to_remove_file")"
 
     if [ "$remove_count" -eq 0 ]; then
-        echo "No local Docker tags matched ${repository}; nothing to clean."
+        rm -f "$refs_file" "$unique_ids_file" "$dated_ids_file" "$kept_ids_file" "$tags_to_remove_file"
+        echo "No Docker cleanup needed for ${repository} (keeping latest ${keep_images} image ids by creation time)."
         return 0
     fi
 
     while IFS= read -r image_ref; do
         [ -n "$image_ref" ] || continue
         docker image rm "$image_ref" >/dev/null
-    done <<EOF
-$tags_to_remove
-EOF
+    done < "$tags_to_remove_file"
 
-    echo "Removed ${remove_count} old Docker tags for ${repository} (kept latest ${keep_images} image ids)."
+    rm -f "$refs_file" "$unique_ids_file" "$dated_ids_file" "$kept_ids_file" "$tags_to_remove_file"
+    echo "Removed ${remove_count} old Docker tags for ${repository} (kept latest ${keep_images} image ids by creation time)."
 }
 
 for repository in "${image_repositories[@]}"; do

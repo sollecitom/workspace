@@ -20,6 +20,7 @@ tools/
 # Tools
 .nwave/
 .claude/
+.workspace-run-state/
 
 # Local planning docs
 UPDATE_WORKSPACE_PLAN.md

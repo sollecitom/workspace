@@ -46,19 +46,19 @@ cleanup:
 # - `refresh-workspace` is the full flow and includes external dependency updates.
 
 @build-workspace:
-    just execute update-internal build publish
+    WORKSPACE_FLOW_NAME=build-workspace just execute update-internal build publish
 
 @refresh-workspace:
-    just execute pull update build publish cleanup
+    WORKSPACE_FLOW_NAME=refresh-workspace just execute pull update build publish cleanup
 
 @refresh-rebuild-workspace:
-    just execute pull update rebuild publish cleanup
+    WORKSPACE_FLOW_NAME=refresh-rebuild-workspace just execute pull update rebuild publish cleanup
 
 @rebuild-workspace:
-    just execute pull update-internal rebuild publish
+    WORKSPACE_FLOW_NAME=rebuild-workspace just execute pull update-internal rebuild publish
 
 @refresh-local-workspace:
-    just execute update-internal build publish cleanup
+    WORKSPACE_FLOW_NAME=refresh-local-workspace just execute update-internal build publish cleanup
 
 @execute +steps:
     bash ./scripts/workspace.sh execute '{{workspace_and_modules}}' '{{publishable}}' {{steps}}
