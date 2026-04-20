@@ -37,6 +37,17 @@ cleanup:
     bash ./scripts/ensure-workspace-requirements.sh update-java
 
 # Workspace operations
+# Workflow invariants:
+# - `execute` is the source of truth for composed workspace flows.
+# - For any given pipeline, `workspace` and publishable/library repos must run sequentially.
+# - Non-library/service repos may run in parallel, but each repo still executes the requested
+#   steps in order within that repo (for example `pull -> update -> build -> publish -> cleanup`).
+# - `build-workspace` and `refresh-local-workspace` are internal-only flows.
+# - `refresh-workspace` is the full flow and includes external dependency updates.
+
+@build-workspace:
+    just execute update-internal build publish
+
 @refresh-workspace:
     just execute pull update build publish cleanup
 
@@ -44,7 +55,7 @@ cleanup:
     just execute pull update-internal rebuild publish
 
 @refresh-local-workspace:
-    just execute build publish cleanup
+    just execute update-internal build publish cleanup
 
 @execute +steps:
     bash ./scripts/workspace.sh execute '{{workspace_and_modules}}' '{{publishable}}' {{steps}}

@@ -28,19 +28,21 @@ Notes:
 
 ### Build Everything
 
-`just refresh-local-workspace`
+`just build-workspace`
 
-Builds every repo in dependency order. This is the internal-only path:
+Builds every repo in dependency order without touching external dependencies:
 
 - updates internal dependency versions from `mavenLocal()`
 - builds every repo
 - publishes internal producers only when their artifacts changed
 
+If you also want cleanup at the end, use `just refresh-local-workspace`.
+
 ### Install Everything
 
 `just install-workspace`
 
-Clones every missing repo, then runs `just refresh-local-workspace`.
+Clones every missing repo, then runs `just build-workspace`.
 
 ### Reinstall Everything
 
@@ -74,4 +76,16 @@ This is the full path:
 - updates internal versions
 - updates external versions
 - builds every repo
+- republishes internal producers only when their artifacts changed
+- cleans up retained local artifacts at the end
+
+### Force Rebuild Everything
+
+`just rebuild-workspace`
+
+Runs the internal-only rebuild path:
+
+- commits and pulls first
+- updates internal versions
+- forces full repo rebuilds
 - republishes internal producers only when their artifacts changed

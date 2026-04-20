@@ -28,13 +28,6 @@ base_image_latest_major=""
 base_image_target_major=""
 base_image_gradle_backup=""
 base_image_dockerfile_backup=""
-update_relevant_paths=(
-    "gradle/libs.versions.toml"
-    "gradle.properties"
-    "gradle/wrapper/gradle-wrapper.properties"
-    "container-versions.properties"
-    "Dockerfile"
-)
 
 cleanup() {
     cd "$start_dir"
@@ -77,40 +70,6 @@ sanitize_gradle_output() {
         s/\e\][^\a]*(?:\a|\e\\\\)//g;
         s/\e\[[0-?]*[ -\/]*[@-~]//g;
     ' | tr -d '\000-\010\013\014\016-\037\177'
-}
-
-repo_head() {
-    git rev-parse HEAD
-}
-
-repo_has_net_worktree_changes() {
-    [ -n "$(git status --porcelain=v1 --untracked-files=normal)" ]
-}
-
-repo_has_update_relevant_changes() {
-    [ -n "$(git status --porcelain=v1 --untracked-files=normal -- "${update_relevant_paths[@]}")" ]
-}
-
-update_build_reason() {
-    local pre_pull_head="$1"
-    local post_pull_head="$2"
-
-    if [ "$pre_pull_head" != "$post_pull_head" ]; then
-        printf '%s\n' "pulled commits changed HEAD"
-        return 0
-    fi
-
-    if repo_has_update_relevant_changes; then
-        printf '%s\n' "update-relevant files changed"
-        return 0
-    fi
-
-    if repo_has_net_worktree_changes; then
-        printf '%s\n' "other repo files changed"
-        return 0
-    fi
-
-    return 1
 }
 
 clear_workspace_events() {
@@ -452,14 +411,6 @@ collect_module_summary() {
     fi
 }
 
-run_cleanup_pass() {
-    local modules_to_clean="$1"
-
-    for module in $modules_to_clean; do
-        run_module_cleanup "$module"
-    done
-}
-
 commit_wip_if_needed() {
     git add -A && (git diff --quiet HEAD || git commit -am "WIP") || true
 }
@@ -587,9 +538,22 @@ run_module_build() {
 
 run_module_rebuild() {
     local module="$1"
+    local keep_state="${2:-0}"
+
     print_header "Rebuilding" "$module"
     cd_module "$module"
-    just rebuild
+    if just rebuild; then
+        :
+    elif apply_base_image_fallback; then
+        just rebuild
+    else
+        restore_base_image_files
+        exit 1
+    fi
+    if [ "$keep_state" -eq 0 ]; then
+        clear_workspace_events
+        reset_base_image_state
+    fi
     echo "✓ $module rebuilt successfully"
 }
 
@@ -935,40 +899,54 @@ execute_requires_workspace_requirements() {
     return 1
 }
 
-run_execute_pipeline() {
-    shift 3
+run_module_pipeline() {
+    local module="$1"
+    shift
     local steps=("$@")
     local step
+    local has_pending_base_image_state=0
 
-    if execute_requires_workspace_requirements "${steps[@]}"; then
-        ensure_workspace_requirements update
-    fi
+    summary_file=""
 
     for step in "${steps[@]}"; do
         case "$step" in
             pull)
-                run_step_pull
+                run_module_pull "$module"
                 ;;
             update)
-                run_step_update
+                has_pending_base_image_state=1
+                run_module_update "$module" 1
                 ;;
             update-internal)
-                run_step_update_internal
+                run_module_update_internal "$module"
                 ;;
             build)
-                run_step_build
+                if [ "$has_pending_base_image_state" -eq 1 ]; then
+                    run_module_build "$module" 1
+                else
+                    run_module_build "$module"
+                fi
                 ;;
             rebuild)
-                run_step_rebuild
+                if [ "$has_pending_base_image_state" -eq 1 ]; then
+                    run_module_rebuild "$module" 1
+                else
+                    run_module_rebuild "$module"
+                fi
                 ;;
             publish)
-                run_step_publish
+                run_module_publish "$module"
                 ;;
             push)
-                run_step_push
+                run_module_push "$module"
                 ;;
             cleanup)
-                run_step_cleanup
+                if [ "$has_pending_base_image_state" -eq 1 ]; then
+                    clear_workspace_events
+                    reset_base_image_state
+                    has_pending_base_image_state=0
+                fi
+                run_module_cleanup "$module"
                 ;;
             *)
                 echo "Unsupported workspace pipeline step: $step" >&2
@@ -976,6 +954,76 @@ run_execute_pipeline() {
                 ;;
         esac
     done
+
+    if [ "$has_pending_base_image_state" -eq 1 ]; then
+        clear_workspace_events
+        reset_base_image_state
+    fi
+}
+
+run_parallel_consumer_pipelines() {
+    local consumer_modules="$1"
+    shift
+    local steps=("$@")
+    local results_dir
+    local failure=0
+    local module
+
+    [ -n "${consumer_modules// }" ] || return 0
+
+    results_dir=$(mktemp -d)
+    echo "Running independent consumer pipelines in parallel (max ${max_parallel_consumers})..."
+
+    for module in $consumer_modules; do
+        wait_for_parallel_slot
+        (
+            if run_module_pipeline "$module" "${steps[@]}" >"$results_dir/${module}.log" 2>&1; then
+                printf '0' > "$results_dir/${module}.exit"
+            else
+                printf '%s' "$?" > "$results_dir/${module}.exit"
+            fi
+        ) &
+    done
+
+    wait || true
+
+    for module in $consumer_modules; do
+        module_exit="$(cat "$results_dir/${module}.exit" 2>/dev/null || printf '1')"
+        if [ "$module_exit" -ne 0 ]; then
+            print_header "Pipeline failed for" "$module"
+            cat "$results_dir/${module}.log"
+            failure=1
+            continue
+        fi
+
+        cat "$results_dir/${module}.log"
+    done
+
+    rm -rf "$results_dir"
+
+    if [ "$failure" -ne 0 ]; then
+        exit 1
+    fi
+}
+
+run_execute_pipeline() {
+    shift 3
+    local steps=("$@")
+    local module
+    local consumer_modules
+
+    if execute_requires_workspace_requirements "${steps[@]}"; then
+        ensure_workspace_requirements update
+    fi
+
+    for module in $modules; do
+        if [ "$module" = "workspace" ] || module_is_publishable "$module"; then
+            run_module_pipeline "$module" "${steps[@]}"
+        fi
+    done
+
+    consumer_modules="$(consumer_modules_from_list)"
+    run_parallel_consumer_pipelines "$consumer_modules" "${steps[@]}"
 }
 
 case "$command_name" in
@@ -1035,17 +1083,6 @@ case "$command_name" in
         echo ""
         echo "✓ Workspace pipeline completed successfully!"
         ;;
-    build-and-publish)
-        for module in $modules; do
-            print_header "Building" "$module"
-            cd_module "$module"
-            just build
-            [[ " $publishable_modules " =~ " $module " ]] && just publish || true
-            echo "✓ $module built and published successfully"
-        done
-        echo ""
-        echo "✓ All modules built and published successfully!"
-        ;;
     install)
         ensure_workspace_requirements install
         for module in $modules; do
@@ -1061,7 +1098,10 @@ case "$command_name" in
             echo "✓ $module cloned"
         done
 
-        bash "$start_dir/scripts/workspace.sh" build "workspace $modules"
+        (
+            cd "$start_dir"
+            just build-workspace
+        )
 
         echo ""
         echo "✓ All modules installed successfully!"
