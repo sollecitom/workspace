@@ -88,7 +88,7 @@ if [ -z "$project_group" ]; then
     exit 0
 fi
 
-group_path="${project_group//./\/}"
+group_path="$(printf '%s' "$project_group" | tr '.' '/')"
 artifacts_root="${maven_local}/${group_path}"
 display_artifacts_root="$(display_path "$artifacts_root")"
 
@@ -105,18 +105,9 @@ cutoff_epoch=$(( current_epoch - (max_age_days * 86400) ))
 removed_count=0
 
 while IFS= read -r -d '' artifact_dir; do
-    mapfile -t version_entries < <(
-        find "$artifact_dir" -mindepth 1 -maxdepth 1 -type d -print \
-            | awk -F/ '{ print $NF "\t" $0 }' \
-            | sort -t $'\t' -k1,1Vr
-    )
-
-    if [ "${#version_entries[@]}" -eq 0 ]; then
-        continue
-    fi
-
     rank=0
-    for entry in "${version_entries[@]}"; do
+    while IFS= read -r entry; do
+        [ -n "$entry" ] || continue
         version="${entry%%$'\t'*}"
         version_dir="${entry#*$'\t'}"
         rank=$((rank + 1))
@@ -136,7 +127,11 @@ while IFS= read -r -d '' artifact_dir; do
 
         rm -rf "$version_dir"
         removed_count=$((removed_count + 1))
-    done
+    done < <(
+        find "$artifact_dir" -mindepth 1 -maxdepth 1 -type d -print \
+            | awk -F/ '{ print $NF "\t" $0 }' \
+            | sort -t $'\t' -k1,1Vr
+    )
 done < <(find "$artifacts_root" -mindepth 1 -maxdepth 1 -type d -print0)
 
 if [ "$removed_count" -eq 0 ]; then

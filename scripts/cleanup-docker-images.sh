@@ -46,21 +46,14 @@ image_listing="$(docker image ls --format '{{.Repository}}\t{{.Tag}}\t{{.ID}}')"
 
 cleanup_repository() {
     local repository="$1"
-    local -a entries=()
-    local -a tags_to_remove=()
+    local tags_to_remove=""
+    local remove_count="0"
 
-    mapfile -t entries < <(printf '%s\n' "$image_listing" | awk -F'\t' -v repository="$repository" '$1 == repository && $2 != "<none>" { print $2 "\t" $3 }')
-
-    if [ "${#entries[@]}" -eq 0 ]; then
-        echo "No local Docker tags matched ${repository}; nothing to clean."
-        return 0
-    fi
-
-    mapfile -t tags_to_remove < <(
-        printf '%s\n' "${entries[@]}" | awk -F'\t' -v repository="$repository" -v keep="$keep_images" '
-            {
-                tag = $1
-                image_id = $2
+    tags_to_remove="$(
+        printf '%s\n' "$image_listing" | awk -F'\t' -v repository="$repository" -v keep="$keep_images" '
+            $1 == repository && $2 != "<none>" {
+                tag = $2
+                image_id = $3
 
                 if (!(image_id in seen)) {
                     seen[image_id] = 1
@@ -75,15 +68,26 @@ cleanup_repository() {
                 }
             }
         '
-    )
+    )"
 
-    if [ "${#tags_to_remove[@]}" -eq 0 ]; then
-        echo "No Docker cleanup needed for ${repository} (keeping latest ${keep_images} image ids)."
+    if [ -z "$tags_to_remove" ]; then
+        if printf '%s\n' "$image_listing" | awk -F'\t' -v repository="$repository" '$1 == repository && $2 != "<none>" { found = 1 } END { exit found ? 0 : 1 }'; then
+            echo "No Docker cleanup needed for ${repository} (keeping latest ${keep_images} image ids)."
+        else
+            echo "No local Docker tags matched ${repository}; nothing to clean."
+        fi
         return 0
     fi
 
-    printf '%s\0' "${tags_to_remove[@]}" | xargs -0 docker image rm >/dev/null
-    echo "Removed ${#tags_to_remove[@]} old Docker tags for ${repository} (kept latest ${keep_images} image ids)."
+    remove_count="$(printf '%s\n' "$tags_to_remove" | awk 'NF { count++ } END { print count + 0 }')"
+
+    if [ "$remove_count" -eq 0 ]; then
+        echo "No local Docker tags matched ${repository}; nothing to clean."
+        return 0
+    fi
+
+    printf '%s\n' "$tags_to_remove" | awk 'NF { printf "%s\0", $0 }' | xargs -0 docker image rm >/dev/null
+    echo "Removed ${remove_count} old Docker tags for ${repository} (kept latest ${keep_images} image ids)."
 }
 
 for repository in "${image_repositories[@]}"; do
