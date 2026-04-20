@@ -60,6 +60,9 @@ cleanup:
 @refresh-local-workspace:
     WORKSPACE_FLOW_NAME=refresh-local-workspace just execute update-internal build publish cleanup
 
+@reset-workspace-state flow="all":
+    bash ./scripts/reset-workspace-state.sh '{{flow}}'
+
 @execute +steps:
     bash ./scripts/workspace.sh execute '{{workspace_and_modules}}' '{{publishable}}' {{steps}}
 
