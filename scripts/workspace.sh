@@ -9,6 +9,7 @@ summary_file=""
 pipeline_update_summary_file=""
 pipeline_internal_update_summary_file=""
 workspace_events_file=""
+last_recipe_log_file=""
 pipeline_state_dir="$start_dir/.workspace-run-state"
 pipeline_state_file=""
 pipeline_state_schema_version="1"
@@ -62,6 +63,9 @@ cleanup() {
     fi
     if [ -n "$workspace_events_file" ]; then
         rm -f "$workspace_events_file"
+    fi
+    if [ -n "$last_recipe_log_file" ]; then
+        rm -f "$last_recipe_log_file"
     fi
     if [ -n "$base_image_gradle_backup" ]; then
         rm -f "$base_image_gradle_backup"
@@ -427,31 +431,55 @@ base_image_updates_supported() {
     return 0
 }
 
+run_command_with_live_logging() {
+    local command="$1"
+    local log_file="$2"
+    local exit_code
+
+    set +e
+    if command -v script >/dev/null 2>&1; then
+        if script -q /dev/null /bin/bash -lc "$command" 2>&1 | tee "$log_file"; then
+            exit_code=0
+        else
+            exit_code=$?
+        fi
+    else
+        if /bin/bash -lc "$command" 2>&1 | tee "$log_file"; then
+            exit_code=0
+        else
+            exit_code=$?
+        fi
+    fi
+    set -e
+
+    return "$exit_code"
+}
+
 run_just_recipe_with_gradle_lock_retry() {
     local recipe="$1"
     local log_file
     local exit_code
+    local shell_command
 
-    log_file=$(mktemp)
-
-    set +e
-    just "$recipe" >"$log_file" 2>&1
-    exit_code="$?"
-    set -e
-
-    if [ "$exit_code" -ne 0 ] && grep -q 'Timeout waiting to lock journal cache' "$log_file"; then
-        cat "$log_file"
-        echo "Gradle cache lock detected while running '$recipe'; stopping daemons and retrying once..."
-        stop_local_gradle_processes
-
-        set +e
-        just "$recipe" >"$log_file" 2>&1
-        exit_code="$?"
-        set -e
+    if [ -n "$last_recipe_log_file" ]; then
+        rm -f "$last_recipe_log_file"
+        last_recipe_log_file=""
     fi
 
-    cat "$log_file"
-    rm -f "$log_file"
+    log_file=$(mktemp)
+    last_recipe_log_file="$log_file"
+    printf -v shell_command 'cd %q && just %q' "$(pwd)" "$recipe"
+
+    run_command_with_live_logging "$shell_command" "$log_file"
+    exit_code="$?"
+
+    if [ "$exit_code" -ne 0 ] && grep -q 'Timeout waiting to lock journal cache' "$log_file"; then
+        echo "Gradle cache lock detected while running '$recipe'; stopping daemons and retrying once..."
+        stop_local_gradle_processes
+        : > "$log_file"
+        run_command_with_live_logging "$shell_command" "$log_file"
+        exit_code="$?"
+    fi
 
     return "$exit_code"
 }
@@ -756,6 +784,62 @@ collect_module_summary() {
     fi
 }
 
+print_build_test_summary() {
+    local module="$1"
+    local sanitized_log_file
+    local summary_line
+
+    [ -n "$last_recipe_log_file" ] || return 0
+    [ -f "$last_recipe_log_file" ] || return 0
+
+    sanitized_log_file=$(mktemp)
+    sanitize_gradle_output < "$last_recipe_log_file" > "$sanitized_log_file"
+
+    summary_line="$(
+        awk '
+            /Aggregated Test Metrics:/ { in_block = 1; next }
+            in_block && /Total Tests Run:/ { run = $NF; next }
+            in_block && /Total Tests Passed:/ { passed = $NF; next }
+            in_block && /Total Tests Failed:/ { failed = $NF; next }
+            in_block && /Total Tests Skipped:/ {
+                skipped = $NF
+                printf "%s %s %s %s\n", run, passed, failed, skipped
+                exit
+            }
+        ' "$sanitized_log_file"
+    )"
+
+    if [ -z "$summary_line" ]; then
+        summary_line="$(
+            awk '
+                /^[[:space:]]*>[[:space:]]+Tests:/ { tests += $NF }
+                /^[[:space:]]*>[[:space:]]+Passed:/ { passed += $NF }
+                /^[[:space:]]*>[[:space:]]+Failed:/ { failed += $NF }
+                /^[[:space:]]*>[[:space:]]+Skipped:/ { skipped += $NF }
+                END {
+                    if (tests > 0 || passed > 0 || failed > 0 || skipped > 0) {
+                        printf "%s %s %s %s\n", tests + 0, passed + 0, failed + 0, skipped + 0
+                    }
+                }
+            ' "$sanitized_log_file"
+        )"
+    fi
+
+    rm -f "$sanitized_log_file"
+
+    if [ -n "$summary_line" ]; then
+        local tests
+        local passed
+        local failed
+        local skipped
+
+        read -r tests passed failed skipped <<< "$summary_line"
+        echo "Tests for $module: ${tests} run, ${passed} passed, ${failed} failed, ${skipped} skipped."
+    else
+        echo "Tests for $module: no test results were reported by the build output."
+    fi
+}
+
 commit_wip_if_needed() {
     local module="${1:-this repo}"
 
@@ -886,6 +970,7 @@ run_module_build() {
         clear_workspace_events
         reset_base_image_state
     fi
+    print_build_test_summary "$module"
     echo "✓ $module built successfully"
 }
 
@@ -907,6 +992,7 @@ run_module_rebuild() {
         clear_workspace_events
         reset_base_image_state
     fi
+    print_build_test_summary "$module"
     echo "✓ $module rebuilt successfully"
 }
 
