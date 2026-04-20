@@ -48,44 +48,42 @@ cleanup_repository() {
     local repository="$1"
     local -a entries=()
     local -a tags_to_remove=()
-    local -A seen_ids=()
-    local -A kept_ids=()
-    local kept_count=0
-    local entry=""
-    local tag=""
-    local image_id=""
 
     mapfile -t entries < <(printf '%s\n' "$image_listing" | awk -F'\t' -v repository="$repository" '$1 == repository && $2 != "<none>" { print $2 "\t" $3 }')
 
     if [ "${#entries[@]}" -eq 0 ]; then
-        echo "No Docker images found for ${repository}."
+        echo "No local Docker tags matched ${repository}; nothing to clean."
         return 0
     fi
 
-    for entry in "${entries[@]}"; do
-        tag="${entry%%$'\t'*}"
-        image_id="${entry#*$'\t'}"
+    mapfile -t tags_to_remove < <(
+        printf '%s\n' "${entries[@]}" | awk -F'\t' -v repository="$repository" -v keep="$keep_images" '
+            {
+                tag = $1
+                image_id = $2
 
-        if [ -z "${seen_ids[$image_id]+x}" ]; then
-            seen_ids[$image_id]=1
-            if [ "$kept_count" -lt "$keep_images" ]; then
-                kept_ids[$image_id]=1
-                kept_count=$((kept_count + 1))
-            fi
-        fi
+                if (!(image_id in seen)) {
+                    seen[image_id] = 1
+                    unique_count++
+                    if (unique_count <= keep) {
+                        kept[image_id] = 1
+                    }
+                }
 
-        if [ -z "${kept_ids[$image_id]+x}" ]; then
-            tags_to_remove+=("${repository}:${tag}")
-        fi
-    done
+                if (!(image_id in kept)) {
+                    print repository ":" tag
+                }
+            }
+        '
+    )
 
     if [ "${#tags_to_remove[@]}" -eq 0 ]; then
-        echo "No Docker image cleanup needed for ${repository} (keep ${keep_images} image ids)."
+        echo "No Docker cleanup needed for ${repository} (keeping latest ${keep_images} image ids)."
         return 0
     fi
 
     printf '%s\0' "${tags_to_remove[@]}" | xargs -0 docker image rm >/dev/null
-    echo "Removed ${#tags_to_remove[@]} old Docker tags for ${repository} (keep ${keep_images} image ids)."
+    echo "Removed ${#tags_to_remove[@]} old Docker tags for ${repository} (kept latest ${keep_images} image ids)."
 }
 
 for repository in "${image_repositories[@]}"; do

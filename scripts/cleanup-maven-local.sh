@@ -80,7 +80,7 @@ group_path="${project_group//./\/}"
 artifacts_root="${maven_local}/${group_path}"
 
 if [ ! -d "$artifacts_root" ]; then
-    echo "No Maven-local artifacts found for ${project_group}."
+    echo "No Maven-local artifact root exists at ${artifacts_root}; nothing to clean for ${project_group}."
     exit 0
 fi
 
@@ -124,7 +124,7 @@ while IFS= read -r -d '' artifact_dir; do
 done < <(find "$artifacts_root" -mindepth 1 -maxdepth 1 -type d -print0)
 
 if [ "$removed_count" -eq 0 ]; then
-    echo "No Maven-local cleanup needed for ${project_group} (keep ${keep_versions}, max age ${max_age_days}d)."
+    echo "No Maven-local cleanup needed for ${project_group} under ${artifacts_root} (keep ${keep_versions}, max age ${max_age_days}d)."
 else
-    echo "Removed ${removed_count} old Maven-local version directories for ${project_group} (keep ${keep_versions}, max age ${max_age_days}d)."
+    echo "Removed ${removed_count} old Maven-local version directories for ${project_group} under ${artifacts_root} (keep ${keep_versions}, max age ${max_age_days}d)."
 fi

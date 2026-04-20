@@ -742,11 +742,13 @@ run_parallel_consumer_modules() {
     for module in $consumer_modules; do
         wait_for_parallel_slot
         (
-            if "$module_function" "$module" >"$results_dir/${module}.log" 2>&1; then
-                printf '0' > "$results_dir/${module}.exit"
-            else
-                printf '%s' "$?" > "$results_dir/${module}.exit"
-            fi
+            set +e
+            (
+                set -e
+                "$module_function" "$module"
+            ) >"$results_dir/${module}.log" 2>&1
+            module_exit="$?"
+            printf '%s' "$module_exit" > "$results_dir/${module}.exit"
         ) &
     done
 
@@ -977,11 +979,13 @@ run_parallel_consumer_pipelines() {
     for module in $consumer_modules; do
         wait_for_parallel_slot
         (
-            if run_module_pipeline "$module" "${steps[@]}" >"$results_dir/${module}.log" 2>&1; then
-                printf '0' > "$results_dir/${module}.exit"
-            else
-                printf '%s' "$?" > "$results_dir/${module}.exit"
-            fi
+            set +e
+            (
+                set -e
+                run_module_pipeline "$module" "${steps[@]}"
+            ) >"$results_dir/${module}.log" 2>&1
+            module_exit="$?"
+            printf '%s' "$module_exit" > "$results_dir/${module}.exit"
         ) &
     done
 
