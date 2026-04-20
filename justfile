@@ -40,6 +40,9 @@ cleanup:
 @refresh-workspace:
     just execute pull update build publish cleanup
 
+@rebuild-workspace:
+    just execute pull update-internal rebuild publish
+
 @refresh-local-workspace:
     just execute build publish cleanup
 

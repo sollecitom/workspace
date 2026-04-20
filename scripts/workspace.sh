@@ -547,6 +547,19 @@ run_module_update() {
     echo "✓ $module updated successfully"
 }
 
+run_module_update_internal() {
+    local module="$1"
+
+    print_header "Updating internal dependencies for" "$module"
+    cd_module "$module"
+    WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" just update-internal-dependencies
+    if [ -n "$summary_file" ]; then
+        module_summary=$(collect_module_summary)
+        append_module_summary "$summary_file" "$module" "$module_summary" "No internal dependency updates were applied."
+    fi
+    echo "✓ $module internal dependencies updated successfully"
+}
+
 run_module_build() {
     local module="$1"
     local keep_state="${2:-0}"
@@ -819,6 +832,17 @@ run_step_update() {
     echo "✓ All modules updated successfully!"
 }
 
+run_step_update_internal() {
+    local module
+
+    reset_summary_file
+    for module in $modules; do
+        run_module_update_internal "$module"
+    done
+    print_summary_box "INTERNAL UPDATE SUMMARY" "No internal dependency changes detected."
+    echo "✓ All modules updated internal dependencies successfully!"
+}
+
 run_step_build() {
     local module
     local consumer_modules
@@ -901,7 +925,7 @@ execute_requires_workspace_requirements() {
     local step
     for step in "$@"; do
         case "$step" in
-            pull|update|build|publish|rebuild|reset)
+            pull|update|update-internal|build|publish|rebuild|reset)
                 return 0
                 ;;
         esac
@@ -925,6 +949,9 @@ run_execute_pipeline() {
                 ;;
             update)
                 run_step_update
+                ;;
+            update-internal)
+                run_step_update_internal
                 ;;
             build)
                 run_step_build
@@ -953,6 +980,10 @@ case "$command_name" in
     update)
         ensure_workspace_requirements update
         run_step_update
+        ;;
+    update-internal)
+        ensure_workspace_requirements update
+        run_step_update_internal
         ;;
     pull|reset|push|rebuild|build|cleanup|publish)
         if [ "$command_name" = "cleanup" ]; then
