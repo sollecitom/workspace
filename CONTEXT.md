@@ -27,8 +27,9 @@ tools / examples / facts / lattice / backend-skeleton / modulith-example / eleme
 
 Published internal versions are discovered locally through `mavenLocal()`. Workspace flows now distinguish between:
 
-- `just build-workspace`: internal-only updates plus build/publish
-- `just update-workspace`: pull, internal updates, external updates, then conditional standalone build only when the repo actually changed
+- `just refresh-workspace`: pull, update, build, publish, cleanup
+- `just refresh-local-workspace`: internal-only build, publish, cleanup
+- `just execute ...`: explicit workspace pipelines such as `just execute pull update build publish cleanup`
 
 ## Build System
 
@@ -45,12 +46,9 @@ Published internal versions are discovered locally through `mavenLocal()`. Works
 | Command | Description |
 |---------|-------------|
 | `just build` | Build a single project |
-| `just build-workspace` | Internal-only workspace update plus build/publish in dependency order |
-| `just update-workspace` | Pull, update internal/external versions, then conditionally build changed repos |
-| `just refresh-workspace` | Alias for the full workspace refresh flow: pull, update, build/publish, cleanup |
-| `just refresh-local-workspace` | Alias for the local-only workspace flow: internal update, build/publish, cleanup |
-| `just cleanup-workspace` | Clean old workspace-owned Maven-local artifacts using per-repo retention rules |
-| `just workflow-workspace ...` | Compose workspace recipes explicitly, for example `just workflow-workspace pull cleanup` |
+| `just refresh-workspace` | Full workspace refresh flow: pull, update, build, publish, cleanup |
+| `just refresh-local-workspace` | Local-only workspace flow: build, publish, cleanup |
+| `just execute ...` | Compose workspace steps explicitly, for example `just execute pull update build publish cleanup` |
 | `just publish` | Publish internal producer outputs to `mavenLocal()` when changed |
 | `just update-all` | Repo-local internal update + external version update + wrapper update |
 | `just push-workspace` | Git push all projects |
@@ -60,7 +58,7 @@ Published internal versions are discovered locally through `mavenLocal()`. Works
 
 ### Gradle Lock / Daemon Issues
 
-When running multiple Gradle builds in sequence (e.g., `build-workspace`), stale daemons or lock files can cause failures like:
+When running multiple Gradle builds in sequence (for example, `just execute build publish`), stale daemons or lock files can cause failures like:
 ```
 Timeout waiting to lock journal cache (.gradle/caches/journal-1)
 ```
@@ -85,7 +83,7 @@ In sandboxed environments (e.g., Meta OnDemand), network access may be blocked. 
 
 Jib 3.5.3 is incompatible with configuration cache at runtime (`jibDockerBuild` serializes `Project`). In modulith-example and element-service-example, `just build` splits into two Gradle invocations — `build` with config cache, then `jibDockerBuild`/`containerBasedServiceTest` with `--no-configuration-cache`.
 
-During `just update-workspace`, those service repos now skip the standalone `just build` entirely when no pulled commits or update-relevant file changes were produced for the repo.
+During `just execute update` or `just refresh-workspace`, those service repos now skip the standalone `just build` entirely when no pulled commits or update-relevant file changes were produced for the repo.
 
 ## gradle-plugins
 
@@ -115,7 +113,7 @@ Docker images built by Jib are scanned for vulnerabilities using Trivy (via Test
 - Trivy version and container image versions are managed in `swissknife/container-versions.properties`
 - Update with `just update-container-versions` in swissknife
 - Suppress accepted CVEs in `.trivyignore` per project
-- Base Docker images are now digest-pinned through repo `gradle.properties` policy fields and refreshed by `just update-workspace`
+- Base Docker images are now digest-pinned through repo `gradle.properties` policy fields and refreshed by `just execute update` or `just refresh-workspace`
 - Repo-local container image updates can contribute extra per-repo summary lines through the workspace event-file contract; today only `swissknife` uses that path
 
 ## Architecture Patterns

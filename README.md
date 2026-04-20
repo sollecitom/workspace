@@ -9,7 +9,7 @@ Bootstrap requirements:
 1. [Homebrew](https://brew.sh/)
 2. [Just](https://github.com/casey/just) command runner
 
-Workspace-managed requirements checked during `just install-workspace` and `just update-workspace`:
+Workspace-managed requirements checked during `just install-workspace` and `just refresh-workspace`:
 
 1. `jq`
 2. Temurin JDK via Homebrew
@@ -28,7 +28,7 @@ Notes:
 
 ### Build Everything
 
-`just build-workspace`
+`just refresh-local-workspace`
 
 Builds every repo in dependency order. This is the internal-only path:
 
@@ -40,7 +40,7 @@ Builds every repo in dependency order. This is the internal-only path:
 
 `just install-workspace`
 
-Clones every missing repo, then runs `just build-workspace`.
+Clones every missing repo, then runs `just refresh-local-workspace`.
 
 ### Reinstall Everything
 
@@ -62,11 +62,11 @@ Runs the targeted Temurin JDK update for the machine without triggering a genera
 
 ### Pull/Push Everything
 
-`just pull-workspace` (or push)
+`just execute pull` (or use repo-local `just pull`)
 
 ### Update Dependencies and Rebuild/Publish Everything
 
-`just update-workspace`
+`just refresh-workspace`
 
 This is the full path:
 

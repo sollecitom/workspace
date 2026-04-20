@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make `just update-workspace` cheap when nothing meaningful changed by relying primarily on reproducible outputs and Gradle-native incrementality, not workspace-level repo skipping logic.
+Make `just refresh-workspace` cheap when nothing meaningful changed by relying primarily on reproducible outputs and Gradle-native incrementality, not workspace-level repo skipping logic.
 
 ## Accepted Decisions
 
@@ -20,7 +20,7 @@ Make `just update-workspace` cheap when nothing meaningful changed by relying pr
 12. Do not add a changed-only repo selection mode.
 13. Do not wrap `versionCatalogUpdate` in extra caching logic. Let actual build inputs and outputs determine downstream work.
 14. Filter known-noisy unresolved aliases from `versionCatalogUpdate` output, but keep unresolved external dependencies visible.
-15. Skip a repo's standalone `just build` during `update-workspace` when `pull` and `update-all` produced no meaningful new inputs for that repo.
+15. Skip a repo's standalone `just build` during the workspace refresh flow when `pull` and `update-all` produced no meaningful new inputs for that repo.
 16. Normal repos should consume published dependencies by explicit version, not `includeBuild(...)` and not `SNAPSHOT` selectors.
 17. A separate aggregator repo may use `includeBuild(...)` across the workspace for cross-repo development and refactoring.
 18. Upstream repos should publish a new patch version only when their reproducible outputs actually changed.
@@ -213,7 +213,7 @@ Implementation direction:
 
 Expected result:
 
-- Lower startup/configuration cost across repeated `./gradlew` invocations during `update-workspace`.
+- Lower startup/configuration cost across repeated `./gradlew` invocations during `refresh-workspace`.
 
 ## Configuration Cache Work
 
@@ -320,7 +320,7 @@ Expected result:
 
 - fewer second-stage Gradle invocations after no-op dependency update runs
 - less repeated included-build configuration, especially for `gradle-plugins`
-- materially faster no-change `update-workspace` runs
+- materially faster no-change `refresh-workspace` runs
 
 ### 8. Use Real Build Inputs and Outputs, Not Workspace Heuristics
 
@@ -396,10 +396,10 @@ Progress:
 The workspace runner now treats these paths as update-relevant inputs: `gradle/libs.versions.toml`, `gradle.properties`, `gradle/wrapper/gradle-wrapper.properties`, `container-versions.properties`, and `Dockerfile`. A standalone build is forced when pulled commits changed `HEAD`, when any of those update-relevant files changed, or conservatively when any other net repo worktree diff remains after `update-all`.
 1.3 [x] Skip a repo's standalone `just build` when the current update run produced no pulled commits, no meaningful dependency or base-image changes, and no net worktree diff for that repo.
 Progress:
-`update-workspace` now skips the extra standalone build in that no-op case and prints whether it is running or skipping the build for each repo.
+The workspace refresh flow now skips the extra standalone build in that no-op case and prints whether it is running or skipping the build for each repo.
 1.4 [x] Add a separate internal-only workspace update path alongside the full external-plus-internal update path.
 Progress:
-Shared Gradle task `updateInternalCatalogVersions` now updates internal version refs from `mavenLocal()` using configurable internal group prefixes, every repo exposes `update-internal-dependencies`, and repo `build` commands now run the internal-only updater before build/publish. Workspace `build-workspace` therefore stays internal-only, while `update-workspace` continues to run the full update flow.
+Shared Gradle task `updateInternalCatalogVersions` now updates internal version refs from `mavenLocal()` using configurable internal group prefixes, every repo exposes `update-internal-dependencies`, and repo `build` commands now run the internal-only updater before build/publish. Workspace `just refresh-local-workspace` is the internal-only high-level flow, while `just refresh-workspace` runs the full pull + update + build + publish + cleanup flow.
 1.5 [x] Centralize machine-level workspace requirements and JDK management at the workspace root.
 Progress:
 Workspace commands now ensure `just`, `jq`, and Temurin through a workspace-level script. Repo-local JDK update scripts were removed from `gradle-plugins` and `backend-skeleton`, and `backend-skeleton` no longer mutates the machine JDK during `update-all`.
@@ -408,7 +408,7 @@ Workspace commands now ensure `just`, `jq`, and Temurin through a workspace-leve
 2. **Publishing And Internal Versions**
 2.1 [x] Add `mavenLocal()` to every repo for both plugin/buildscript resolution and normal dependency resolution, and verify the dependency update plugin sees locally published internal versions through the same setup.
 Progress:
-All normal repos now declare `mavenLocal()` in `pluginManagement.repositories` and `dependencyResolutionManagement.repositories`. End-to-end verification is now complete: after publishing `gradle-plugins` `1.0.4` locally, `just update-workspace` updated downstream repos from `sollecitom-gradle-plugins = 1.0.3` to `1.0.4` through the normal dependency update flow.
+All normal repos now declare `mavenLocal()` in `pluginManagement.repositories` and `dependencyResolutionManagement.repositories`. End-to-end verification is now complete: after publishing `gradle-plugins` `1.0.4` locally, the workspace refresh flow updated downstream repos from `sollecitom-gradle-plugins = 1.0.3` to `1.0.4` through the normal dependency update flow.
 2.2 [x] Introduce explicit non-`SNAPSHOT` internal versions for publishable repos and define the patch-bump workflow used when outputs actually changed.
 Progress:
 `gradle-plugins`, `acme-schema-catalogue`, `swissknife`, and `pillar` now publish explicit non-`SNAPSHOT` versions, and all normal repos consume those libraries by explicit version from `mavenLocal()`.
@@ -421,18 +421,18 @@ Confirmed end to end: after publishing `gradle-plugins` `1.0.4` locally, downstr
 2.5 [x] Implement per-repo `just cleanup` commands for workspace-owned Maven-local artifacts, preserving a small rollback window.
 Progress:
 Every repo now exposes `just cleanup`, backed by the shared `scripts/cleanup-maven-local.sh` helper. Each repo sets its own retention policy through the recipe arguments (`--keep` and `--max-age-days`), with publishable libraries currently keeping a larger rollback window than consumer repos.
-2.6 [x] Add `just cleanup-workspace` at the workspace root to delegate to each repo’s cleanup command.
+2.6 [x] Add a workspace-level cleanup entry point that delegates to each repo’s cleanup command.
 Progress:
-The root workspace now exposes `just cleanup-workspace`, and `scripts/workspace.sh` has a dedicated `cleanup` command that runs `just cleanup` across the workspace modules.
+The root workspace now exposes cleanup through `just execute cleanup`, and `scripts/workspace.sh` has a dedicated `cleanup` command that runs `just cleanup` across the workspace modules.
 2.7 [x] Decide whether Maven-local cleanup remains explicit or becomes part of another workflow later.
 Progress:
 Cleanup now has both forms:
-- explicit via `just cleanup` and `just cleanup-workspace`
-- integrated at the end of `just update-workspace` and `just build-workspace`
+- explicit via `just cleanup` and `just execute cleanup`
+- integrated at the end of `just refresh-workspace` and `just refresh-local-workspace`
 Additional workflow aliases now exist at the workspace layer so the main commands remain:
 - `just refresh-workspace` for pull + update + build/publish + cleanup
 - `just refresh-local-workspace` for internal-only build/publish + cleanup
-- `just workflow-workspace ...` for explicit composition of workspace commands
+- `just execute ...` for explicit composition of workspace commands
 
 3. **Reproducibility**
 3.1 [x] Audit published library artifacts, manifests, and archive settings so unchanged inputs produce byte-identical outputs.
@@ -441,10 +441,10 @@ Published library reproducibility has now been verified sufficiently for this ch
 3.2 [ ] Audit service image outputs so unchanged image inputs produce identical images.
 3.3 [x] Verify end-to-end that unchanged service repos do not rebuild images or rerun image-based tests/scans.
 Progress:
-The latest no-op `just update-workspace` run skipped the standalone `just build` for `modulith-example` and `element-service-example`, so their Jib image build, container-based tests, and security scan did not rerun.
+The latest no-op workspace refresh run skipped the standalone `just build` for `modulith-example` and `element-service-example`, so their Jib image build, container-based tests, and security scan did not rerun.
 3.4 [x] Verify end-to-end that unchanged upstream library outputs do not trigger meaningful downstream rebuild work.
 Progress:
-The latest no-op `just update-workspace` run skipped the standalone `just build` for downstream consumer repos after internal/external update tasks completed without net repo changes, confirming unchanged upstream outputs no longer force meaningful downstream rebuild work.
+The latest no-op workspace refresh run skipped the standalone `just build` for downstream consumer repos after internal/external update tasks completed without net repo changes, confirming unchanged upstream outputs no longer force meaningful downstream rebuild work.
 
 4. **Base Images And Service Verification**
 4.1 [x] Define and implement a shared base-image policy model that supports `latest` major tracking and explicit pinned majors per repo.
@@ -495,7 +495,7 @@ The dependency boundary is now clear enough to propose a safe future rollout:
 - only parallelize the consumer wave after those publishes succeed: `tools`, `examples`, `facts`, `backend-skeleton`, `modulith-example`, `element-service-example`, `lattice`
 - start with `max_parallel_consumers=2` on a 38 GB / 11 CPU machine, and keep `modulith-example` plus `element-service-example` as heavy service builds that should not share the same parallel slot until memory pressure is measured under Jib/container-test load
 - keep `pull`, `update-all`, and local publishing serialized so `mavenLocal()` remains the single ordered source of freshly published internal versions
-6.2 [ ] Verify end-to-end that a no-change `just update-workspace` run is materially faster while still relying on Gradle-native incrementality.
+6.2 [ ] Verify end-to-end that a no-change `just refresh-workspace` run is materially faster while still relying on Gradle-native incrementality.
 6.3 [ ] Re-enable the Gradle daemon for local runs across all workspace repos.
 
 7. **Cross-Repo Development**
@@ -507,7 +507,7 @@ Normal repos no longer use composite-build overrides for `gradle-plugins`, `acme
 ## Immediate Follow-Ups
 
 1. **Verified Recently**
-1.1 [x] Run `just update-workspace` end to end and confirm the new full flow.
+1.1 [x] Run the workspace refresh flow end to end and confirm the new full flow.
 Result:
 Commits and pulls happen first, internal and external updates run, and standalone repo builds are now skipped when no meaningful repo change remains.
 1.2 [x] Verify the new `BUILD SUMMARY` and `UPDATE SUMMARY` output includes internal version bumps from `updateInternalCatalogVersions`.
@@ -531,13 +531,13 @@ None at the moment. `swissknife` is the only repo with repo-local container imag
    - start with `max_parallel_consumers=2`
 2.3 [x] Add Maven-local cleanup commands:
    - per-repo `just cleanup`
-   - workspace `just cleanup-workspace`
+   - workspace `just execute cleanup`
    - preserve a small rollback window
 2.4 [ ] Decide whether repo-local update scripts should share a tiny helper convention for emitting workspace summary events, or continue using a simple environment-file contract.
 
 ## Success Criteria
 
-- `just update-workspace` is fast when no relevant dependency files changed anywhere.
+- `just refresh-workspace` is fast when no relevant dependency files changed anywhere.
 - If a core repo like `swissknife` rebuilds with unchanged relevant inputs, it produces the same artifacts.
 - If upstream artifacts are unchanged, downstream repos do not do meaningful rebuild work.
 - Service images are rebuilt and retested only when service/image inputs changed.

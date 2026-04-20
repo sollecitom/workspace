@@ -37,33 +37,6 @@ cleanup:
     bash ./scripts/ensure-workspace-requirements.sh update-java
 
 # Workspace operations
-@update-workspace:
-    bash ./scripts/workspace.sh update '{{workspace_and_modules}}'
-
-@pull-workspace:
-    bash ./scripts/workspace.sh pull '{{workspace_and_modules}}'
-
-@reset-workspace:
-    bash ./scripts/workspace.sh reset '{{workspace_and_modules}}'
-
-@push-workspace:
-    bash ./scripts/workspace.sh push '{{workspace_and_modules}}'
-
-@build-and-publish-workspace:
-    bash ./scripts/workspace.sh build-and-publish '{{workspace_and_modules}}' '{{publishable}}'
-
-@rebuild-workspace:
-    bash ./scripts/workspace.sh rebuild '{{workspace_and_modules}}'
-
-@build-workspace:
-    bash ./scripts/workspace.sh build '{{workspace_and_modules}}'
-
-@publish-workspace:
-    bash ./scripts/workspace.sh publish '{{workspace_and_modules}}' '{{publishable}}'
-
-@cleanup-workspace:
-    bash ./scripts/workspace.sh cleanup '{{workspace_and_modules}}'
-
 @refresh-workspace:
     just execute pull update build publish cleanup
 
@@ -72,9 +45,6 @@ cleanup:
 
 @execute +steps:
     bash ./scripts/workspace.sh execute '{{workspace_and_modules}}' '{{publishable}}' {{steps}}
-
-@workflow-workspace +steps:
-    just execute {{steps}}
 
 @install-workspace:
     bash ./scripts/workspace.sh install '{{all_modules}}'
