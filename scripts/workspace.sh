@@ -123,6 +123,42 @@ ensure_workspace_requirements() {
     bash "$start_dir/scripts/ensure-workspace-requirements.sh" "$mode"
 }
 
+stop_local_gradle_processes() {
+    if [ -x ./gradlew ]; then
+        ./gradlew --stop >/dev/null 2>&1 || true
+    fi
+    pkill -f 'GradleDaemon' >/dev/null 2>&1 || true
+}
+
+run_just_recipe_with_gradle_lock_retry() {
+    local recipe="$1"
+    local log_file
+    local exit_code
+
+    log_file=$(mktemp)
+
+    set +e
+    just "$recipe" >"$log_file" 2>&1
+    exit_code="$?"
+    set -e
+
+    if [ "$exit_code" -ne 0 ] && grep -q 'Timeout waiting to lock journal cache' "$log_file"; then
+        cat "$log_file"
+        echo "Gradle cache lock detected while running '$recipe'; stopping daemons and retrying once..."
+        stop_local_gradle_processes
+
+        set +e
+        just "$recipe" >"$log_file" 2>&1
+        exit_code="$?"
+        set -e
+    fi
+
+    cat "$log_file"
+    rm -f "$log_file"
+
+    return "$exit_code"
+}
+
 property_value() {
     local file="$1"
     local key="$2"
@@ -493,7 +529,7 @@ run_module_update() {
     print_header "Updating" "$module"
     cd_module "$module"
     prepare_base_image_policy
-    WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" just update-all
+    WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" run_just_recipe_with_gradle_lock_retry update-all
     if [ -n "$summary_file" ]; then
         module_summary=$(collect_module_summary)
         append_module_summary "$summary_file" "$module" "$module_summary" "No dependencies were updated."
@@ -510,7 +546,7 @@ run_module_update_internal() {
 
     print_header "Updating internal dependencies for" "$module"
     cd_module "$module"
-    WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" just update-internal-dependencies
+    WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" run_just_recipe_with_gradle_lock_retry update-internal-dependencies
     if [ -n "$summary_file" ]; then
         module_summary=$(collect_module_summary)
         append_module_summary "$summary_file" "$module" "$module_summary" "No internal dependency updates were applied."
@@ -524,10 +560,10 @@ run_module_build() {
 
     print_header "Building" "$module"
     cd_module "$module"
-    if just build; then
+    if run_just_recipe_with_gradle_lock_retry build; then
         :
     elif apply_base_image_fallback; then
-        just build
+        run_just_recipe_with_gradle_lock_retry build
     else
         restore_base_image_files
         exit 1
@@ -549,10 +585,10 @@ run_module_rebuild() {
 
     print_header "Rebuilding" "$module"
     cd_module "$module"
-    if just rebuild; then
+    if run_just_recipe_with_gradle_lock_retry rebuild; then
         :
     elif apply_base_image_fallback; then
-        just rebuild
+        run_just_recipe_with_gradle_lock_retry rebuild
     else
         restore_base_image_files
         exit 1
@@ -569,7 +605,7 @@ run_module_publish() {
     print_header "Publishing" "$module"
     cd_module "$module"
     if just --summary 2>/dev/null | tr ' ' '\n' | grep -Fxq publish; then
-        just publish
+        run_just_recipe_with_gradle_lock_retry publish
         echo "✓ $module published successfully"
     else
         echo "Skipping publish for $module; no publish recipe."
@@ -863,6 +899,7 @@ case "$command_name" in
         echo "✓ Workspace pipeline completed successfully!"
         ;;
     install)
+        module=""
         ensure_workspace_requirements install
         for module in $modules; do
             if [ -d "$start_dir/$module/.git" ]; then
@@ -886,6 +923,7 @@ case "$command_name" in
         echo "✓ All modules installed successfully!"
         ;;
     reinstall)
+        module=""
         for module in $modules; do
             if [ -d "$start_dir/$module" ]; then
                 print_header "Removing" "$module"

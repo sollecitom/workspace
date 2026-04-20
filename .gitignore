@@ -1,5 +1,6 @@
 # Each project is its own git repo — don't track them in the workspace git
 acme-schema-catalogue/
+aggregator/
 backend-skeleton/
 element-service-example/
 examples/
