@@ -38,6 +38,61 @@ Builds every repo in dependency order without touching external dependencies:
 
 If you also want cleanup at the end, use `just refresh-local-workspace`.
 
+### Refresh Everything
+
+`just refresh-workspace`
+
+This is the full workspace flow:
+
+- commits local repo changes as `WIP` before `pull` when needed
+- pulls every repo in dependency order
+- updates external and internal dependency versions
+- builds every repo
+- publishes internal producers only when their artifacts changed
+- runs each repo's cleanup policy
+
+This command is resumable. If it fails mid-run, rerun the same command to continue from the first unfinished repo.
+
+### Refresh Local Only
+
+`just refresh-local-workspace`
+
+Runs the local-only refresh flow:
+
+- updates internal dependency versions from `mavenLocal()`
+- builds every repo
+- publishes internal producers only when their artifacts changed
+- runs each repo's cleanup policy
+
+Use this when you want the full local publish/build/cleanup cycle without pulling or updating external dependencies.
+
+### Force Rebuild Everything
+
+`just refresh-rebuild-workspace`
+
+Runs the full refresh flow, but forces rebuilds instead of normal builds:
+
+- commits and pulls first
+- updates internal and external dependency versions
+- forces full repo rebuilds
+- republishes internal producers only when their artifacts changed
+- runs each repo's cleanup policy
+
+This is the most useful command when you want a full clean-ish verification pass across the workspace.
+
+### Force Rebuild Local Only
+
+`just rebuild-workspace`
+
+Runs the internal-only rebuild path:
+
+- commits and pulls first
+- updates internal versions
+- forces full repo rebuilds
+- republishes internal producers only when their artifacts changed
+
+Unlike `refresh-rebuild-workspace`, this does not run cleanup at the end.
+
 ### Install Everything
 
 `just install-workspace`
@@ -50,11 +105,76 @@ Clones every missing repo, then runs `just build-workspace`.
 
 Deletes every repo, reclones them all, then runs `just install-workspace`.
 
+### Pull/Push Everything
+
+`just execute pull` (or use repo-local `just pull`)
+
+For workspace-git-only push of the root repo metadata:
+
+`just push`
+
+### Compose A Flow
+
+`just execute <step>...`
+
+Examples:
+
+- `just execute pull update build publish cleanup`
+- `just execute update-internal build publish`
+- `just execute pull update rebuild publish cleanup`
+
+Allowed steps:
+
+- `pull`
+- `update`
+- `update-internal`
+- `build`
+- `rebuild`
+- `publish`
+- `push`
+- `cleanup`
+
+Rules:
+
+- steps run sequentially in the order you provide
+- each repo completes its full requested mini-pipeline before the next repo starts
+- duplicate steps are rejected
+- invalid step order is rejected
+- use either `build` or `rebuild`, not both
+
+Named workspace commands such as `build-workspace` and `refresh-workspace` are thin wrappers around `execute`.
+
+### Reset Resume State
+
+`just reset-workspace-state`
+
+Removes all saved resumable workspace state.
+
+You can also reset a single flow:
+
+`just reset-workspace-state refresh-workspace`
+
+Supported flow names currently include:
+
+- `build-workspace`
+- `refresh-workspace`
+- `refresh-local-workspace`
+- `refresh-rebuild-workspace`
+- `rebuild-workspace`
+
+`just reset-workspace-state all` is equivalent to the default.
+
 ### Check Requirements
 
 `just check-workspace-requirements`
 
 Verifies the required local CLI tools are available.
+
+### Ensure Requirements
+
+`just ensure-workspace-requirements`
+
+Installs or upgrades the workspace-managed machine prerequisites.
 
 ### Update Machine JDK
 
@@ -62,30 +182,45 @@ Verifies the required local CLI tools are available.
 
 Runs the targeted Temurin JDK update for the machine without triggering a general Homebrew auto-update.
 
-### Pull/Push Everything
+## Cleanup
 
-`just execute pull` (or use repo-local `just pull`)
+Cleanup is repo-local, but the refresh flows run it automatically.
 
-### Update Dependencies and Rebuild/Publish Everything
+Current behavior:
 
-`just refresh-workspace`
+- `build-workspace` does not clean
+- `rebuild-workspace` does not clean
+- `refresh-workspace` cleans
+- `refresh-local-workspace` cleans
+- `refresh-rebuild-workspace` cleans
 
-This is the full path:
+Each repo decides its own retention policy for:
 
-- commits and pulls first
-- updates internal versions
-- updates external versions
-- builds every repo
-- republishes internal producers only when their artifacts changed
-- cleans up retained local artifacts at the end
+- Maven-local artifacts under `~/.m2/repository`
+- local Docker images, where applicable
 
-### Force Rebuild Everything
+Current retention policy:
 
-`just rebuild-workspace`
+- library-style repos keep the current version, the newest `5` version directories, and only delete older Maven-local versions once they are also older than `30` days
+- service/consumer repos keep the current version, the newest `2` version directories, and only delete older Maven-local versions once they are also older than `14` days
+- Docker images use a count-only policy and keep the newest `2` image ids by creation time for each configured image repository
 
-Runs the internal-only rebuild path:
+In other words, Maven-local cleanup currently uses a mixed count-and-age rule, while Docker cleanup uses count only.
 
-- commits and pulls first
-- updates internal versions
-- forces full repo rebuilds
-- republishes internal producers only when their artifacts changed
+## Resumability
+
+These named workspace flows are resumable:
+
+- `build-workspace`
+- `refresh-workspace`
+- `refresh-local-workspace`
+- `refresh-rebuild-workspace`
+- `rebuild-workspace`
+
+Resume behavior:
+
+- successful repos are marked complete
+- rerunning the same command resumes from the first unfinished repo
+- failed steps are retried; successful repos are skipped
+- stale saved state older than one hour is discarded automatically
+- use `just reset-workspace-state` if you want to force a full restart from scratch

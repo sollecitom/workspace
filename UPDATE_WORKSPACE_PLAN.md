@@ -4,6 +4,27 @@
 
 Make `just refresh-workspace` cheap when nothing meaningful changed by relying primarily on reproducible outputs and Gradle-native incrementality, not workspace-level repo skipping logic.
 
+## Remaining Checklist
+
+- [ ] 2. Image reproducibility and incrementality
+  - [ ] 2.1 Audit `jibDockerBuild` inputs and outputs for reproducibility.
+  - [ ] 2.2 Audit `containerBasedServiceTest` inputs so it only reruns when the tested image or relevant runtime inputs changed.
+  - [ ] 2.3 Audit `securityScan` inputs so it only reruns when the scanned image or relevant inputs changed.
+  - [ ] 2.4 Finish digest-pinned base-image handling and validate the policy/fallback behavior in real runs.
+- [ ] 3. Gradle daemon
+  - [ ] 3.1 Re-enable the Gradle daemon for local development once the higher-priority build correctness work is settled.
+- [ ] 4. Configuration cache
+  - [ ] 4.1 Triage discarded configuration-cache entries in the normal build path.
+  - [ ] 4.2 Fix the highest-value custom plugin/convention issues in `gradle-plugins`.
+  - [ ] 4.3 Decide what remains accepted third-party noise versus what should actually be fixed.
+  - [ ] 4.4 Clean up the `kotlin-dsl` / Kotlin-version mismatch in `gradle-plugins` if you no longer want that warning accepted as noise.
+- [ ] 5. Jib convention
+  - [ ] 5.1 Refactor the shared Jib convention away from `afterEvaluate`.
+    Relevant file: [JibDockerBuildConvention.kt](/Users/msollecito/workspace/gradle-plugins/components/base/src/main/kotlin/sollecitom/plugins/conventions/task/jib/JibDockerBuildConvention.kt)
+- [ ] 6. Aggregator
+  - [ ] 6.1 Run a real smoke test in `aggregator`, at least `just projects`.
+  - [ ] 6.2 Optionally run `just build` there once to confirm the composite workbench behaves as expected.
+
 ## Accepted Decisions
 
 1. Make library and image outputs reproducible so identical inputs yield identical artifacts.
