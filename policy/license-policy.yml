@@ -93,7 +93,7 @@ license_notes:
   GPL-2.0-with-classpath-exception-2.0: "Use it only as an unmodified library dependency, preserve notices, and do not modify or republish the covered code outside the classpath-exception model."
   LicenseRef-CDDL-GPL-CE: "Be explicit about relying on the classpath-exception branch, preserve notices, and avoid modifying or republishing the covered code."
   LicenseRef-CDDL-GPL: "Treat this as a consciously approved dual-license dependency, preserve the license text and notices, do not modify or copy the covered source into our codebase, and be prepared to explain which licensing branch we are relying on."
-  FSL-1.1-ALv2: "Require an explicit business/legal decision before shipping; this is not a standard permissive OSS license."
+  FSL-1.1-ALv2: "Require an explicit business/legal decision before shipping; this is not a standard permissive OSS license. Do not assume Maven Central means it is safe by default."
 
 package_overrides:
   - package: pkg:maven/com.google.cloud.tools/jib-gradle-plugin@3.5.3

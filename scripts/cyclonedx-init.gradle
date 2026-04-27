@@ -22,6 +22,14 @@ def aggregateOutputFileFor = { project ->
     project.layout.buildDirectory.file("reports/sbom/cyclonedx.json").get().asFile
 }
 
+def directSnapshotOutputFileFor = { project ->
+    project.layout.buildDirectory.file("reports/license-audit/direct-dependency-snapshot.json").get().asFile
+}
+
+def aggregateSnapshotOutputFileFor = { project ->
+    project.layout.buildDirectory.file("reports/license-audit/dependency-snapshot.json").get().asFile
+}
+
 def metadataComponentFor = { project ->
     [
         type: "application",
@@ -91,8 +99,75 @@ def writeBomFile = { outputFile, metadataComponent, components ->
     outputFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(bom)) + "\n"
 }
 
+def writeSnapshotFile = { outputFile, repoName, projectPath, components ->
+    def snapshot = [
+        repo: repoName,
+        projectPath: projectPath,
+        generatedAt: Instant.now().toString(),
+        components: components.sort { left, right -> left.coordinate <=> right.coordinate }
+    ]
+
+    outputFile.parentFile.mkdirs()
+    outputFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(snapshot)) + "\n"
+}
+
+def resolvedCoordinatesFor = { project, configurationNames ->
+    def coordinatesByKey = new LinkedHashMap<String, Map<String, Object>>()
+
+    configurationNames.each { configurationName ->
+        def configuration = project.configurations.findByName(configurationName)
+        if (configuration == null || !configuration.canBeResolved) {
+            return
+        }
+
+        configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            if (!(artifact.id.componentIdentifier instanceof ModuleComponentIdentifier)) {
+                return
+            }
+
+            ModuleComponentIdentifier id = (ModuleComponentIdentifier) artifact.id.componentIdentifier
+            def key = componentPurl(id)
+            def entry = coordinatesByKey.computeIfAbsent(key) {
+                [
+                    coordinate: key,
+                    configurations: [] as Set
+                ]
+            }
+            entry.configurations << configurationName
+        }
+    }
+
+    coordinatesByKey.values().collect { entry ->
+        [
+            coordinate: entry.coordinate,
+            configurations: (entry.configurations as Set).toList().sort()
+        ]
+    }
+}
+
 rootProject { workspaceRoot ->
     allprojects { candidateProject ->
+        candidateProject.tasks.register("licenseDependencySnapshot") {
+            group = "reporting"
+            description = "Generates a direct dependency snapshot for ${candidateProject.path}."
+            inputs.property("licenseDependencySnapshotVersion", "1")
+            inputs.files(taskInputFilesFor(candidateProject))
+            outputs.file(directSnapshotOutputFileFor(candidateProject))
+
+            doLast {
+                def components = resolvedCoordinatesFor(candidateProject, [
+                    "runtimeClasspath",
+                    "compileClasspath",
+                    "testRuntimeClasspath",
+                    "testCompileClasspath"
+                ])
+
+                def outputFile = directSnapshotOutputFileFor(candidateProject)
+                writeSnapshotFile(outputFile, workspaceRoot.name, candidateProject.path, components)
+                logger.lifecycle("Wrote dependency snapshot to ${outputFile}")
+            }
+        }
+
         candidateProject.tasks.register("cyclonedxDirectBom") {
             group = "reporting"
             description = "Generates a direct CycloneDX JSON SBOM for ${candidateProject.path}."
@@ -226,6 +301,51 @@ rootProject { workspaceRoot ->
                 writeBomFile(outputFile, metadataComponentFor(candidateProject), components)
                 logger.lifecycle("Wrote SBOM to ${outputFile}")
             }
+        }
+    }
+
+    tasks.register("aggregateLicenseDependencySnapshot") {
+        group = "reporting"
+        description = "Generates an aggregate dependency snapshot for the root project and subprojects."
+        inputs.property("licenseDependencySnapshotVersion", "1")
+        inputs.files(taskInputFilesFor(workspaceRoot))
+        dependsOn(workspaceRoot.allprojects.collect { it.tasks.named("licenseDependencySnapshot") })
+        outputs.file(aggregateSnapshotOutputFileFor(workspaceRoot))
+
+        doLast {
+            def mergedByCoordinate = new LinkedHashMap<String, Map<String, Object>>()
+            def slurper = new JsonSlurper()
+
+            workspaceRoot.allprojects.each { candidateProject ->
+                def directFile = directSnapshotOutputFileFor(candidateProject)
+                if (!directFile.exists()) {
+                    return
+                }
+
+                def parsed = slurper.parse(directFile)
+                def components = parsed.components instanceof List ? parsed.components : []
+                components.each { component ->
+                    def coordinate = component.coordinate as String
+                    def configurations = ((component.configurations ?: []) as List).collect { it.toString() }
+                    def entry = mergedByCoordinate.computeIfAbsent(coordinate) {
+                        [
+                            coordinate: coordinate,
+                            configurations: [] as Set
+                        ]
+                    }
+                    entry.configurations.addAll(configurations)
+                }
+            }
+
+            def outputFile = aggregateSnapshotOutputFileFor(workspaceRoot)
+            def mergedComponents = mergedByCoordinate.values().collect { entry ->
+                [
+                    coordinate: entry.coordinate,
+                    configurations: (entry.configurations as Set).toList().sort()
+                ]
+            }
+            writeSnapshotFile(outputFile, workspaceRoot.name, workspaceRoot.path, mergedComponents)
+            logger.lifecycle("Wrote aggregate dependency snapshot to ${outputFile}")
         }
     }
 
