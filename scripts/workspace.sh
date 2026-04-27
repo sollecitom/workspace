@@ -23,6 +23,7 @@ pipeline_runner_command=""
 pipeline_is_resuming=0
 pipeline_update_summary_state_file=""
 pipeline_internal_update_summary_state_file=""
+license_audit_runner_ready=0
 resume_ttl_seconds=3600
 base_image_policy_active=0
 base_image_follow_latest=0
@@ -1024,6 +1025,33 @@ run_module_cleanup() {
     echo "✓ $module cleaned successfully"
 }
 
+ensure_license_audit_runner() {
+    if [ "$license_audit_runner_ready" -eq 1 ]; then
+        return 0
+    fi
+
+    print_header "Preparing" "license audit runner"
+    cd "$start_dir/tools"
+    ./gradlew --quiet --warning-mode none --no-configuration-cache :tools-license-audit-app:installDist
+    license_audit_runner_ready=1
+    echo "✓ License audit runner prepared successfully"
+}
+
+run_module_license_audit() {
+    local module="$1"
+
+    if [ "$module" = "workspace" ]; then
+        echo "Skipping license audit for workspace; no repo-level dependencies to scan."
+        return 0
+    fi
+
+    ensure_license_audit_runner
+    print_header "Auditing licenses for" "$module"
+    cd "$start_dir/tools"
+    ./modules/license-audit/app/build/install/tools-license-audit-app/bin/tools-license-audit-app workspace "$module"
+    echo "✓ $module license audit completed successfully"
+}
+
 run_step_pull() {
     local module
     for module in $modules; do
@@ -1108,11 +1136,22 @@ run_step_push() {
     echo "✓ All modules pushed successfully!"
 }
 
+run_step_license_audit() {
+    local module
+
+    for module in $modules; do
+        run_module_license_audit "$module"
+    done
+
+    echo ""
+    echo "✓ All module license audits completed successfully!"
+}
+
 execute_requires_workspace_requirements() {
     local step
     for step in "$@"; do
         case "$step" in
-            pull|update|update-internal|build|publish|rebuild|reset)
+            pull|update|update-internal|build|publish|rebuild|reset|license-audit)
                 return 0
                 ;;
         esac
@@ -1137,6 +1176,7 @@ validate_execute_steps() {
             update|update-internal) step_rank=20 ;;
             build|rebuild) step_rank=30 ;;
             publish|push) step_rank=40 ;;
+            license-audit) step_rank=45 ;;
             cleanup) step_rank=50 ;;
             *)
                 echo "Unsupported workspace pipeline step: $step" >&2
@@ -1228,6 +1268,10 @@ run_module_pipeline() {
                 summary_file=""
                 run_module_push "$module"
                 ;;
+            license-audit)
+                summary_file=""
+                run_module_license_audit "$module"
+                ;;
             cleanup)
                 summary_file=""
                 if [ "$has_pending_base_image_state" -eq 1 ]; then
@@ -1314,7 +1358,12 @@ case "$command_name" in
         ensure_workspace_requirements update
         run_step_update_internal
         ;;
-    pull|reset|push|rebuild|build|cleanup|publish)
+    pull|reset|push|rebuild|build|cleanup|publish|license-audit)
+        if [ "$command_name" = "license-audit" ]; then
+            ensure_workspace_requirements update
+            run_step_license_audit
+            exit 0
+        fi
         if [ "$command_name" = "cleanup" ]; then
             run_step_cleanup
             exit 0

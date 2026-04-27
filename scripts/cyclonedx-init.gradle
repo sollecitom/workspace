@@ -1,0 +1,260 @@
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
+import groovy.io.FileType
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+
+import java.time.Instant
+import java.util.UUID
+
+def componentKey = { ModuleComponentIdentifier id ->
+    "${id.group}:${id.module}:${id.version}"
+}
+
+def componentPurl = { ModuleComponentIdentifier id ->
+    "pkg:maven/${id.group}/${id.module}@${id.version}"
+}
+
+def directOutputFileFor = { project ->
+    project.layout.buildDirectory.file("reports/sbom/direct-cyclonedx.json").get().asFile
+}
+
+def aggregateOutputFileFor = { project ->
+    project.layout.buildDirectory.file("reports/sbom/cyclonedx.json").get().asFile
+}
+
+def metadataComponentFor = { project ->
+    [
+        type: "application",
+        group: project.group?.toString(),
+        name: project.name,
+        version: project.version?.toString()
+    ].findAll { key, value -> value != null && value != "" }
+}
+
+def taskInputFilesFor = { project ->
+    def inputs = [] as Set
+    def rootProject = project.rootProject
+
+    [
+        rootProject.file("build.gradle.kts"),
+        rootProject.file("build.gradle"),
+        rootProject.file("settings.gradle.kts"),
+        rootProject.file("settings.gradle"),
+        rootProject.file("gradle.properties"),
+        rootProject.file("container-versions.properties"),
+        rootProject.file("justfile")
+    ].findAll { it.exists() }.each { inputs << it }
+
+    def gradleDir = rootProject.file("gradle")
+    if (gradleDir.exists()) {
+        rootProject.fileTree(gradleDir) {
+            include("**/libs.versions.toml")
+        }.files.each { inputs << it }
+    }
+
+    [
+        project.file("build.gradle.kts"),
+        project.file("build.gradle"),
+        project.file("gradle.properties")
+    ].findAll { it.exists() }.each { inputs << it }
+
+    def buildSrcDir = rootProject.file("buildSrc")
+    if (buildSrcDir.exists()) {
+        rootProject.fileTree(buildSrcDir) {
+            include("**/build.gradle.kts")
+            include("**/build.gradle")
+            include("**/settings.gradle.kts")
+            include("**/settings.gradle")
+            include("**/gradle.properties")
+            include("**/libs.versions.toml")
+        }.files.each { inputs << it }
+    }
+
+    inputs.findAll { it.exists() } as List
+}
+
+def writeBomFile = { outputFile, metadataComponent, components ->
+    def bom = [
+        bomFormat: "CycloneDX",
+        specVersion: "1.6",
+        serialNumber: "urn:uuid:${UUID.randomUUID()}",
+        version: 1,
+        metadata: [
+            timestamp: Instant.now().toString(),
+            tools: [[vendor: "workspace", name: "gradle-init-cyclonedx", version: "1"]],
+            component: metadataComponent
+        ],
+        components: components.sort { left, right -> left["bom-ref"] <=> right["bom-ref"] }
+    ]
+
+    outputFile.parentFile.mkdirs()
+    outputFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(bom)) + "\n"
+}
+
+rootProject { workspaceRoot ->
+    allprojects { candidateProject ->
+        candidateProject.tasks.register("cyclonedxDirectBom") {
+            group = "reporting"
+            description = "Generates a direct CycloneDX JSON SBOM for ${candidateProject.path}."
+            inputs.property("licenseSbomBootstrapVersion", "2")
+            inputs.files(taskInputFilesFor(candidateProject))
+            outputs.file(directOutputFileFor(candidateProject))
+
+            doLast {
+                def moduleIdsByKey = new LinkedHashMap<String, ModuleComponentIdentifier>()
+                def licensesByKey = [:].withDefault { [] }
+                def pomFilesByKey = new LinkedHashMap<String, File>()
+                def resolvedLicensesByKey = new LinkedHashMap<String, List<String>>()
+                def moduleCacheRoots = [
+                    workspaceRoot.gradle.gradleUserHomeDir.toPath().resolve("caches/modules-2/files-2.1").toFile(),
+                    new File(System.getProperty("user.home"), ".gradle/caches/modules-2/files-2.1")
+                ].findAll { file -> file.exists() }.unique()
+
+                def extractLicenseNames = { File pomFile ->
+                    def text = pomFile.getText("UTF-8")
+                    def matcher = (text =~ /(?s)<license>\s*.*?<name>\s*([^<]+?)\s*<\/name>.*?<\/license>/)
+                    matcher.collect { match -> match[1]?.trim() }.findAll { it }.unique()
+                }
+
+                def extractParentCoordinate = { File pomFile ->
+                    def text = pomFile.getText("UTF-8")
+                    def matcher = (text =~ /(?s)<parent>\s*.*?<groupId>\s*([^<]+?)\s*<\/groupId>\s*.*?<artifactId>\s*([^<]+?)\s*<\/artifactId>\s*.*?<version>\s*([^<]+?)\s*<\/version>.*?<\/parent>/)
+                    matcher.find() ? [matcher.group(1)?.trim(), matcher.group(2)?.trim(), matcher.group(3)?.trim()] : null
+                }
+
+                def resolvePomFile
+                resolvePomFile = { String group, String module, String version ->
+                    def key = "${group}:${module}:${version}"
+                    pomFilesByKey.computeIfAbsent(key) {
+                        try {
+                            for (def moduleCacheRoot : moduleCacheRoots) {
+                                def versionDirectory = new File(moduleCacheRoot, "${group}/${module}/${version}")
+                                if (!versionDirectory.exists()) {
+                                    continue
+                                }
+                                def pomFile = null
+                                versionDirectory.eachFileRecurse(FileType.FILES) { file ->
+                                    if (pomFile == null && file.name.endsWith(".pom")) {
+                                        pomFile = file
+                                    }
+                                }
+                                if (pomFile != null) {
+                                    return pomFile
+                                }
+                            }
+                            null
+                        } catch (Exception exception) {
+                            logger.info("Failed to locate cached POM for ${key}", exception)
+                            null
+                        }
+                    }
+                }
+
+                def resolveLicensesFor
+                resolveLicensesFor = { String group, String module, String version, Set<String> visited ->
+                    def key = "${group}:${module}:${version}"
+                    if (!visited.add(key)) {
+                        return []
+                    }
+                    if (resolvedLicensesByKey.containsKey(key)) {
+                        return resolvedLicensesByKey[key]
+                    }
+
+                    def pomFile = resolvePomFile(group, module, version)
+                    if (pomFile == null || !pomFile.exists()) {
+                        resolvedLicensesByKey[key] = []
+                        return []
+                    }
+
+                    try {
+                        def names = extractLicenseNames(pomFile)
+                        if (!names.isEmpty()) {
+                            resolvedLicensesByKey[key] = names
+                            return names
+                        }
+
+                        def parentCoordinate = extractParentCoordinate(pomFile)
+                        if (parentCoordinate != null && parentCoordinate.every { it }) {
+                            def inherited = resolveLicensesFor(parentCoordinate[0], parentCoordinate[1], parentCoordinate[2], visited)
+                            resolvedLicensesByKey[key] = inherited
+                            return inherited
+                        }
+                    } catch (Exception exception) {
+                        logger.info("Failed to parse license metadata from ${pomFile}", exception)
+                    }
+
+                    resolvedLicensesByKey[key] = []
+                    return []
+                }
+
+                ["runtimeClasspath", "compileClasspath"].each { configurationName ->
+                    def configuration = candidateProject.configurations.findByName(configurationName)
+                    if (configuration != null && configuration.canBeResolved) {
+                        configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                            if (artifact.id.componentIdentifier instanceof ModuleComponentIdentifier) {
+                                ModuleComponentIdentifier id = (ModuleComponentIdentifier) artifact.id.componentIdentifier
+                                moduleIdsByKey.putIfAbsent(componentKey(id), id)
+                            }
+                        }
+                    }
+                }
+
+                if (!moduleIdsByKey.isEmpty()) {
+                    moduleIdsByKey.values().each { id ->
+                        def key = componentKey(id)
+                        def names = resolveLicensesFor(id.group, id.module, id.version, new LinkedHashSet<String>())
+                        if (!names.isEmpty()) {
+                            licensesByKey[key] = names
+                        }
+                    }
+                }
+
+                def components = moduleIdsByKey.values().collect { id ->
+                    def key = componentKey(id)
+                    [
+                        "bom-ref": key,
+                        type: "library",
+                        group: id.group,
+                        name: id.module,
+                        version: id.version,
+                        purl: componentPurl(id),
+                        licenses: licensesByKey[key].collect { licenseName -> [license: [name: licenseName]] }
+                    ]
+                }
+
+                def outputFile = directOutputFileFor(candidateProject)
+                writeBomFile(outputFile, metadataComponentFor(candidateProject), components)
+                logger.lifecycle("Wrote SBOM to ${outputFile}")
+            }
+        }
+    }
+
+    tasks.register("cyclonedxBom") {
+        group = "reporting"
+        description = "Generates an aggregate CycloneDX JSON SBOM for the root project and subprojects."
+        inputs.property("licenseSbomBootstrapVersion", "2")
+        inputs.files(taskInputFilesFor(workspaceRoot))
+        dependsOn(workspaceRoot.allprojects.collect { it.tasks.named("cyclonedxDirectBom") })
+        outputs.file(aggregateOutputFileFor(workspaceRoot))
+
+        doLast {
+            def mergedByRef = new LinkedHashMap<String, Map<String, Object>>()
+            def slurper = new JsonSlurper()
+
+            workspaceRoot.allprojects.each { candidateProject ->
+                def directFile = directOutputFileFor(candidateProject)
+                if (directFile.exists()) {
+                    def parsed = slurper.parse(directFile)
+                    def components = parsed.components instanceof List ? parsed.components : []
+                    components.each { component ->
+                        mergedByRef.putIfAbsent(component["bom-ref"] as String, component as Map<String, Object>)
+                    }
+                }
+            }
+
+            def outputFile = aggregateOutputFileFor(workspaceRoot)
+            writeBomFile(outputFile, metadataComponentFor(workspaceRoot), mergedByRef.values() as List)
+            logger.lifecycle("Wrote SBOM to ${outputFile}")
+        }
+    }
+}

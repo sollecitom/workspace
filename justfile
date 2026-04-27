@@ -36,6 +36,12 @@ cleanup:
 @update-java-workspace:
     bash ./scripts/ensure-workspace-requirements.sh update-java
 
+@license-audit:
+    bash ./scripts/workspace.sh license-audit '{{workspace_and_modules}}' '{{publishable}}'
+
+@license-audit-workspace:
+    WORKSPACE_FLOW_NAME=license-audit-workspace just execute license-audit
+
 # Workspace operations
 # Workflow invariants:
 # - `execute` is the source of truth for composed workspace flows.
