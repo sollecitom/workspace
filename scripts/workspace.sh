@@ -1039,6 +1039,7 @@ ensure_license_audit_runner() {
 
 run_module_license_audit() {
     local module="$1"
+    local compact_mode="${2:-0}"
 
     if [ "$module" = "workspace" ]; then
         echo "Skipping license audit for workspace; no repo-level dependencies to scan."
@@ -1048,7 +1049,11 @@ run_module_license_audit() {
     ensure_license_audit_runner
     print_header "Auditing licenses for" "$module"
     cd "$start_dir/tools"
-    ./modules/license-audit/app/build/install/tools-license-audit-app/bin/tools-license-audit-app workspace "$module"
+    if [ "$compact_mode" -eq 1 ]; then
+        ./modules/license-audit/app/build/install/tools-license-audit-app/bin/tools-license-audit-app workspace --compact "$module"
+    else
+        ./modules/license-audit/app/build/install/tools-license-audit-app/bin/tools-license-audit-app workspace "$module"
+    fi
     echo "✓ $module license audit completed successfully"
 }
 
@@ -1138,9 +1143,10 @@ run_step_push() {
 
 run_step_license_audit() {
     local module
+    local compact_mode="${1:-0}"
 
     for module in $modules; do
-        run_module_license_audit "$module"
+        run_module_license_audit "$module" "$compact_mode"
     done
 
     echo ""
@@ -1151,7 +1157,7 @@ execute_requires_workspace_requirements() {
     local step
     for step in "$@"; do
         case "$step" in
-            pull|update|update-internal|build|publish|rebuild|reset|license-audit)
+            pull|update|update-internal|build|publish|rebuild|reset|license-audit|license-audit-compact)
                 return 0
                 ;;
         esac
@@ -1176,7 +1182,7 @@ validate_execute_steps() {
             update|update-internal) step_rank=20 ;;
             build|rebuild) step_rank=30 ;;
             publish|push) step_rank=40 ;;
-            license-audit) step_rank=45 ;;
+            license-audit|license-audit-compact) step_rank=45 ;;
             cleanup) step_rank=50 ;;
             *)
                 echo "Unsupported workspace pipeline step: $step" >&2
@@ -1272,6 +1278,10 @@ run_module_pipeline() {
                 summary_file=""
                 run_module_license_audit "$module"
                 ;;
+            license-audit-compact)
+                summary_file=""
+                run_module_license_audit "$module" 1
+                ;;
             cleanup)
                 summary_file=""
                 if [ "$has_pending_base_image_state" -eq 1 ]; then
@@ -1358,10 +1368,15 @@ case "$command_name" in
         ensure_workspace_requirements update
         run_step_update_internal
         ;;
-    pull|reset|push|rebuild|build|cleanup|publish|license-audit)
+    pull|reset|push|rebuild|build|cleanup|publish|license-audit|license-audit-compact)
         if [ "$command_name" = "license-audit" ]; then
             ensure_workspace_requirements update
             run_step_license_audit
+            exit 0
+        fi
+        if [ "$command_name" = "license-audit-compact" ]; then
+            ensure_workspace_requirements update
+            run_step_license_audit 1
             exit 0
         fi
         if [ "$command_name" = "cleanup" ]; then

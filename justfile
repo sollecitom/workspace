@@ -39,6 +39,9 @@ cleanup:
 @license-audit:
     bash ./scripts/workspace.sh license-audit '{{workspace_and_modules}}' '{{publishable}}'
 
+@license-audit-compact:
+    bash ./scripts/workspace.sh license-audit-compact '{{workspace_and_modules}}' '{{publishable}}'
+
 @license-audit-workspace:
     WORKSPACE_FLOW_NAME=license-audit-workspace just execute license-audit
 
@@ -55,10 +58,10 @@ cleanup:
     WORKSPACE_FLOW_NAME=build-workspace just execute update-internal build publish
 
 @refresh-workspace:
-    WORKSPACE_FLOW_NAME=refresh-workspace just execute pull update build publish cleanup
+    WORKSPACE_FLOW_NAME=refresh-workspace just execute pull update build publish license-audit-compact cleanup
 
 @refresh-rebuild-workspace:
-    WORKSPACE_FLOW_NAME=refresh-rebuild-workspace just execute pull update rebuild publish cleanup
+    WORKSPACE_FLOW_NAME=refresh-rebuild-workspace just execute pull update rebuild publish license-audit-compact cleanup
 
 @rebuild-workspace:
     WORKSPACE_FLOW_NAME=rebuild-workspace just execute pull update-internal rebuild publish

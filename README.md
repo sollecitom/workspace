@@ -49,6 +49,7 @@ This is the full workspace flow:
 - updates external and internal dependency versions
 - builds every repo
 - publishes internal producers only when their artifacts changed
+- runs compact license audits for each repo
 - runs each repo's cleanup policy
 
 This command is resumable. If it fails mid-run, rerun the same command to continue from the first unfinished repo.
@@ -76,6 +77,7 @@ Runs the full refresh flow, but forces rebuilds instead of normal builds:
 - updates internal and external dependency versions
 - forces full repo rebuilds
 - republishes internal producers only when their artifacts changed
+- runs compact license audits for each repo
 - runs each repo's cleanup policy
 
 This is the most useful command when you want a full clean-ish verification pass across the workspace.
@@ -143,6 +145,27 @@ Rules:
 - use either `build` or `rebuild`, not both
 
 Named workspace commands such as `build-workspace` and `refresh-workspace` are thin wrappers around `execute`.
+
+### License Audit
+
+Workspace-level commands:
+
+- `just license-audit`
+- `just license-audit-compact`
+
+Repo-local commands, from inside any repo that exposes them:
+
+- `just license-audit`
+- `just license-audit-compact`
+
+Behavior:
+
+- `license-audit` is the extended report, including grouped findings and explanatory notes
+- `license-audit-compact` prints only the compact finding set intended for workspace flows
+- both commands fail on `DENY`
+- both commands also fail on `UNKNOWN`
+- `refresh-workspace` and `refresh-rebuild-workspace` automatically run `license-audit-compact`
+- `build-workspace` does not run license audit
 
 ### Reset Resume State
 
