@@ -311,6 +311,11 @@ remove_pipeline_state() {
     pipeline_internal_update_summary_state_file=""
 }
 
+clear_workspace_run_state() {
+    rm -rf "$pipeline_state_dir"
+    remove_pipeline_state
+}
+
 prepare_pipeline_state() {
     local steps=("$@")
     local configured_flow_name="${WORKSPACE_FLOW_NAME:-}"
@@ -1456,6 +1461,7 @@ case "$command_name" in
         echo "✓ All modules installed successfully!"
         ;;
     reinstall)
+        clear_workspace_run_state
         module=""
         for module in $modules; do
             if [ -d "$start_dir/$module" ]; then
