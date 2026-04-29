@@ -24,6 +24,9 @@ rebuild:
 update-all:
     @:
 
+update-internal-dependencies:
+    @:
+
 cleanup:
     @:
 
