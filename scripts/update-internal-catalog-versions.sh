@@ -3,18 +3,20 @@ set -euo pipefail
 
 repo_root="${1:-.}"
 catalog_file="${repo_root%/}/gradle/libs.versions.toml"
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+workspace_root="$(cd "$script_dir/.." && pwd)"
 
 if [ ! -f "$catalog_file" ]; then
     echo "Skipping internal dependency update because $catalog_file does not exist."
     exit 0
 fi
 
-perl - "$catalog_file" <<'PERL'
+perl - "$catalog_file" "$workspace_root" <<'PERL'
 use strict;
 use warnings;
 use File::Temp qw(tempfile);
 
-my $catalog_file = shift @ARGV;
+my ($catalog_file, $workspace_root) = @ARGV;
 my $maven_local = "$ENV{HOME}/.m2/repository";
 my @internal_prefixes = ('sollecitom');
 
@@ -71,7 +73,8 @@ for my $version_ref (sort keys %references) {
     my %available;
     for my $coordinate (sort keys %{ $references{$version_ref} }) {
         my ($group, $artifact) = split /:/, $coordinate, 2;
-        my $resolved = latest_published_version($group, $artifact);
+        my $resolved = tracked_published_version($group, $artifact);
+        $resolved = latest_published_version($group, $artifact) unless defined $resolved;
         $available{$resolved} = 1 if defined $resolved;
     }
 
@@ -136,6 +139,52 @@ sub latest_published_version {
 
     @candidates = sort { compare_versions($a, $b) } @candidates;
     return $candidates[-1];
+}
+
+sub tracked_published_version {
+    my ($group, $artifact) = @_;
+
+    if ($artifact =~ /\.gradle\.plugin$/) {
+        return publication_state_version("$workspace_root/gradle-plugins/publication-state.properties");
+    }
+
+    return undef unless $group =~ /^sollecitom\.(.+)$/;
+    my $repo_name = $1;
+    my $state_file = "$workspace_root/$repo_name/publication-state.properties";
+    return undef unless -f $state_file;
+
+    my $identity = "$group:$artifact\@jar";
+    my $published_version = publication_state_version($state_file);
+    return undef unless defined $published_version;
+
+    open my $state, '<', $state_file or die "Unable to read $state_file: $!";
+    while (my $line = <$state>) {
+        chomp $line;
+        if ($line =~ /^artifact\.\d+\.identity=(.+)$/ && $1 eq $identity) {
+            close $state;
+            return $published_version;
+        }
+    }
+    close $state;
+
+    return undef;
+}
+
+sub publication_state_version {
+    my ($state_file) = @_;
+    return undef unless -f $state_file;
+
+    open my $state, '<', $state_file or die "Unable to read $state_file: $!";
+    while (my $line = <$state>) {
+        chomp $line;
+        if ($line =~ /^publishedVersion=(.+)$/) {
+            close $state;
+            return $1;
+        }
+    }
+    close $state;
+
+    return undef;
 }
 
 sub compare_versions {
