@@ -901,6 +901,11 @@ module_is_publishable() {
     [[ " $publishable_modules " =~ " $1 " ]]
 }
 
+just_recipe_exists() {
+    local recipe="$1"
+    just --summary 2>/dev/null | tr ' ' '\n' | grep -Fxq "$recipe"
+}
+
 reset_summary_file() {
     if [ -n "$summary_file" ] && [ -f "$summary_file" ]; then
         rm -f "$summary_file"
@@ -1001,7 +1006,7 @@ run_module_publish() {
     local module="$1"
     print_header "Publishing" "$module"
     cd_module "$module"
-    if just --summary 2>/dev/null | tr ' ' '\n' | grep -Fxq publish; then
+    if just_recipe_exists publish; then
         run_just_recipe_with_gradle_lock_retry publish
         echo "✓ $module published successfully"
     else
