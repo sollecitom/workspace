@@ -786,7 +786,9 @@ apply_base_image_fallback() {
 
 collect_module_summary() {
     if [ -x ./gradlew ]; then
-        WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" ./gradlew -q updateSummary 2>/dev/null | sanitize_gradle_output || true
+        WORKSPACE_UPDATE_EVENTS_FILE="$workspace_events_file" ./gradlew -q updateSummary 2>/dev/null \
+            | sanitize_gradle_output \
+            | grep -Ev '^(retries|retryBackOffMs): ' || true
     fi
 }
 
