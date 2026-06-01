@@ -1038,7 +1038,11 @@ run_module_cleanup() {
 }
 
 ensure_license_audit_runner() {
-    if [ "$license_audit_runner_ready" -eq 1 ]; then
+    local runner_binary="$start_dir/tools/modules/license-audit/app/build/install/tools-license-audit-app/bin/tools-license-audit-app"
+    # Reinstall when the binary is missing, not only when the flag is unset: a `rebuild` of the
+    # `tools` module cleans the runner's own build/install directory after it was first prepared,
+    # so the cached "ready" flag alone would skip reinstalling and the audit would fail.
+    if [ "$license_audit_runner_ready" -eq 1 ] && [ -x "$runner_binary" ]; then
         return 0
     fi
 
