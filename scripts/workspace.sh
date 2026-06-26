@@ -12,12 +12,15 @@ workspace_events_file=""
 last_recipe_log_file=""
 pipeline_state_dir="$start_dir/.workspace-run-state"
 pipeline_state_file=""
-pipeline_state_schema_version="1"
+pipeline_state_schema_version="2"
 pipeline_flow_name=""
 pipeline_started_at=""
 pipeline_steps_signature=""
 pipeline_modules_signature=""
 completed_repos_csv=""
+# Per-repo source fingerprints (";"-separated "repo=fingerprint"), captured when a repo is marked complete.
+# On resume, a completed repo whose fingerprint changed (and everything after it) is re-run.
+completed_repo_fingerprints=""
 pipeline_runner_pid="$$"
 pipeline_runner_command=""
 pipeline_is_resuming=0
@@ -116,6 +119,102 @@ cd_module() {
     else
         cd "$start_dir/$module"
     fi
+}
+
+hash_stdin() {
+    if command -v shasum >/dev/null 2>&1; then
+        shasum | awk '{ print $1 }'
+    elif command -v sha1sum >/dev/null 2>&1; then
+        sha1sum | awk '{ print $1 }'
+    else
+        cksum | awk '{ print $1 "-" $2 }'
+    fi
+}
+
+# Fingerprint of a repo's source: HEAD commit + content of all tracked working-tree changes + untracked file list.
+# This changes whenever the repo's source changes (committed or not), so a resume can detect a repo edited mid-flow.
+# Prints empty when the module dir or git is unavailable (callers treat empty-vs-empty as "unchanged").
+repo_source_fingerprint() {
+    local module="$1"
+    (
+        cd_module "$module" 2>/dev/null || exit 0
+        command -v git >/dev/null 2>&1 || exit 0
+        git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
+        {
+            git rev-parse HEAD 2>/dev/null
+            git diff HEAD 2>/dev/null
+            git ls-files --others --exclude-standard 2>/dev/null
+        } | hash_stdin
+    )
+}
+
+# Looks up a stored fingerprint for $1 in completed_repo_fingerprints (";"-separated "repo=fingerprint"); prints it or empty.
+fingerprint_lookup() {
+    local repo="$1"
+    local entry
+    local IFS=';'
+    for entry in $completed_repo_fingerprints; do
+        case "$entry" in
+            "$repo="*)
+                printf '%s' "${entry#"$repo"=}"
+                return 0
+                ;;
+        esac
+    done
+}
+
+# Appends a "repo=fingerprint" entry to completed_repo_fingerprints.
+fingerprint_record() {
+    local repo="$1"
+    local fingerprint="$2"
+    if [ -n "$completed_repo_fingerprints" ]; then
+        completed_repo_fingerprints="${completed_repo_fingerprints};${repo}=${fingerprint}"
+    else
+        completed_repo_fingerprints="${repo}=${fingerprint}"
+    fi
+}
+
+# On resume, walk completed repos in dependency order and keep only the leading run whose source is unchanged.
+# The first repo whose fingerprint differs from when it completed — and every repo after it — is dropped from the
+# completed set so it (and its downstream consumers) re-run. Rebuilds completed_repos_csv / completed_repo_fingerprints.
+invalidate_changed_completed_repos() {
+    local module
+    local stored
+    local current
+    local invalidated=0
+    local kept_repos=""
+    local kept_fingerprints=""
+
+    for module in $modules; do
+        pipeline_repo_is_completed "$module" || continue
+
+        if [ "$invalidated" -eq 1 ]; then
+            echo "Re-running previously-completed repo ${module}: an earlier repo changed, so its downstream must rebuild."
+            continue
+        fi
+
+        stored=$(fingerprint_lookup "$module")
+        current=$(repo_source_fingerprint "$module")
+        if [ "$stored" != "$current" ]; then
+            echo "Source of ${module} changed since it completed; re-running it and all downstream repos."
+            invalidated=1
+            continue
+        fi
+
+        if [ -n "$kept_repos" ]; then
+            kept_repos="${kept_repos},${module}"
+        else
+            kept_repos="$module"
+        fi
+        if [ -n "$kept_fingerprints" ]; then
+            kept_fingerprints="${kept_fingerprints};${module}=${current}"
+        else
+            kept_fingerprints="${module}=${current}"
+        fi
+    done
+
+    completed_repos_csv="$kept_repos"
+    completed_repo_fingerprints="$kept_fingerprints"
 }
 
 print_header() {
@@ -257,6 +356,7 @@ mark_pipeline_repo_completed() {
     else
         completed_repos_csv="$repo"
     fi
+    fingerprint_record "$repo" "$(repo_source_fingerprint "$repo")"
 }
 
 write_pipeline_state() {
@@ -285,6 +385,7 @@ write_pipeline_state() {
         printf 'STATE_CURRENT_REPO=%q\n' "$current_repo"
         printf 'STATE_CURRENT_STEP=%q\n' "$current_step"
         printf 'STATE_COMPLETED_REPOS=%q\n' "$completed_repos_csv"
+        printf 'STATE_REPO_FINGERPRINTS=%q\n' "$completed_repo_fingerprints"
     } > "$temp_state_file"
 
     mv "$temp_state_file" "$pipeline_state_file"
@@ -306,6 +407,7 @@ remove_pipeline_state() {
     pipeline_steps_signature=""
     pipeline_modules_signature=""
     completed_repos_csv=""
+    completed_repo_fingerprints=""
     pipeline_is_resuming=0
     pipeline_update_summary_state_file=""
     pipeline_internal_update_summary_state_file=""
@@ -357,6 +459,7 @@ prepare_pipeline_state() {
         STATE_CURRENT_REPO=""
         STATE_CURRENT_STEP=""
         STATE_COMPLETED_REPOS=""
+        STATE_REPO_FINGERPRINTS=""
         # shellcheck disable=SC1090
         . "$pipeline_state_file"
 
@@ -384,6 +487,10 @@ prepare_pipeline_state() {
             && [ "${STATE_STATUS:-}" = "running" ]; then
             pipeline_started_at="${STATE_STARTED_AT:-$now}"
             completed_repos_csv="${STATE_COMPLETED_REPOS:-}"
+            completed_repo_fingerprints="${STATE_REPO_FINGERPRINTS:-}"
+            # Re-run any completed repo whose source changed since it completed (and everything downstream of it).
+            invalidate_changed_completed_repos
+            write_pipeline_state running "${STATE_CURRENT_REPO:-}" "${STATE_CURRENT_STEP:-}"
             pipeline_is_resuming=1
             total_modules=$(count_modules)
             completed_modules=$(count_completed_repos)
