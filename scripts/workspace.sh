@@ -1478,12 +1478,6 @@ run_execute_pipeline() {
         print_summary_box "INTERNAL UPDATE SUMMARY" "No internal dependency changes detected."
     fi
 
-    # TEMPORARY REMINDER (remove once unpinned): jackson-datatype-jsr310 is pinned in
-    # element-service-example because jackson-core 2.22.0 is missing from Maven Central (partial publish).
-    echo ""
-    echo "⚠️  REMINDER: jackson-datatype-jsr310 is pinned to 2.21.3 in element-service-example/gradle/libs.versions.toml"
-    echo "    (jackson-core 2.22.0 never published to Maven Central). Remove the '# @pinned' comment there once 2.22.0 lands."
-
     summary_file="$original_summary_file"
     remove_pipeline_state
 }
