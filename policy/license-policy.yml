@@ -96,9 +96,9 @@ license_notes:
   FSL-1.1-ALv2: "Require an explicit business/legal decision before shipping; this is not a standard permissive OSS license. Do not assume Maven Central means it is safe by default."
 
 package_overrides:
-  - package: pkg:maven/com.google.cloud.tools/jib-gradle-plugin@3.5.3
+  - package_prefix: pkg:maven/com.google.cloud.tools/jib-gradle-plugin@
     license: Apache-2.0
-    reason: Published plugin POM on plugins.gradle.org omits license metadata; upstream project is Apache-2.0.
+    reason: Published plugin POM on plugins.gradle.org omits license metadata (all versions); upstream project is Apache-2.0.
   - package_prefix: pkg:maven/com.github.docker-java/
     license: Apache-2.0
     reason: docker-java published child POMs omit license blocks, but the upstream parent project is Apache-2.0.
