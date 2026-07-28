@@ -60,10 +60,12 @@ cleanup:
 @build-workspace:
     WORKSPACE_FLOW_NAME=build-workspace just execute update-internal build publish
 
-@refresh-workspace:
+@refresh-workspace flag="":
+    {{ if flag == "" { "true" } else if flag == "--no-cache" { "just reset-workspace-state refresh-workspace" } else { error("Unknown flag '" + flag + "' (supported: --no-cache)") } }}
     WORKSPACE_FLOW_NAME=refresh-workspace just execute pull update build publish license-audit-compact cleanup
 
-@refresh-rebuild-workspace:
+@refresh-rebuild-workspace flag="":
+    {{ if flag == "" { "true" } else if flag == "--no-cache" { "just reset-workspace-state refresh-rebuild-workspace" } else { error("Unknown flag '" + flag + "' (supported: --no-cache)") } }}
     WORKSPACE_FLOW_NAME=refresh-rebuild-workspace just execute pull update rebuild publish license-audit-compact cleanup
 
 @rebuild-workspace:
