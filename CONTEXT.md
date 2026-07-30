@@ -42,8 +42,8 @@ Workflow invariants:
 
 ## Build System
 
-- **Gradle 9.4.1** with Kotlin DSL and version catalogs (`gradle/libs.versions.toml`)
-- **Kotlin 2.3.20**, **Temurin JDK 26** on the machine, **JUnit 5 + AssertK**
+- **Gradle** with Kotlin DSL and version catalogs (`gradle/libs.versions.toml`)
+- **Kotlin**, **Temurin JDK** on the machine, **JUnit 5 + AssertK**
 - **Configuration cache** enabled across all projects
 - **`just`** for task automation — all recipes use kebab-case
 - Workspace prerequisites are managed centrally from the root workspace scripts:
@@ -95,7 +95,7 @@ In sandboxed environments (e.g., Meta OnDemand), network access may be blocked. 
 
 ### Jib and Configuration Cache
 
-Jib 3.5.3 is incompatible with configuration cache at runtime (`jibDockerBuild` serializes `Project`). In modulith-example and element-service-example, `just build` splits into two Gradle invocations — `build` with config cache, then `jibDockerBuild`/`containerBasedServiceTest` with `--no-configuration-cache`.
+Jib is incompatible with configuration cache at runtime (`jibDockerBuild` serializes `Project`). In modulith-example and element-service-example, `just build` splits into two Gradle invocations — `build` with config cache, then `jibDockerBuild`/`containerBasedServiceTest` with `--no-configuration-cache`.
 
 During `just execute update` or `just refresh-workspace`, those service repos now skip the standalone `just build` entirely when no pulled commits or update-relevant file changes were produced for the repo.
 
@@ -113,12 +113,10 @@ Conventions are registered as proper Gradle plugins with IDs:
 | `sollecitom.jib-docker-build-conventions` | Jib Docker image build |
 | `sollecitom.container-based-service-test-conventions` | Container-based service tests |
 | `sollecitom.security-scan-conventions` | Docker image vulnerability scanning via Trivy |
-| `sollecitom.kotlin-conventions` | Kotlin compiler options (JVM 25, context parameters, progressive) |
+| `sollecitom.kotlin-conventions` | Kotlin compiler options (JVM target, context parameters, progressive) |
 | `sollecitom.kotlin-library-conventions` | Composite: kotlin-jvm + java-library + idea + test + minimum-dependency-version + repositories + Java toolchain |
 
 Submodules apply `plugins { id("sollecitom.kotlin-library-conventions") }`. No `buildSrc` or `allprojects` — each module is self-contained.
-
-`gradle-plugins` intentionally keeps Kotlin `2.3.20` for now, even though Gradle emits the known `kotlin-dsl` compatibility warning. That warning is currently accepted noise.
 
 ## Security Scanning
 
