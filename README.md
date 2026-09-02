@@ -9,7 +9,7 @@ Bootstrap requirements:
 1. [Homebrew](https://brew.sh/)
 2. [Just](https://github.com/casey/just) command runner
 
-Workspace-managed requirements checked during `just install-workspace` and `just refresh-workspace`:
+Workspace-managed requirements checked during `just install-workspace` and `just update-workspace`:
 
 1. `jq`
 2. Temurin JDK via Homebrew
@@ -30,70 +30,43 @@ Notes:
 
 `just build-workspace`
 
-Builds every repo in dependency order without touching external dependencies:
+The inner loop. Builds every repo in dependency order and publishes producers whose artifacts changed:
 
 - updates internal dependency versions from `mavenLocal()`
 - builds every repo
 - publishes internal producers only when their artifacts changed
 
-If you also want cleanup at the end, use `just refresh-local-workspace`.
+Deliberately does not pull or clean, to keep the loop short.
 
-### Refresh Everything
+### Pull And Build Everything
 
-`just refresh-workspace`
+`just pull-workspace`
 
-This is the full workspace flow:
+Everything `build-workspace` does, plus:
 
 - commits local repo changes as `WIP` before `pull` when needed
 - pulls every repo in dependency order
-- updates external and internal dependency versions
-- builds every repo
-- publishes internal producers only when their artifacts changed
+- runs each repo's cleanup policy at the end
+
+### Update Everything
+
+`just update-workspace`
+
+The maintenance pass. Everything `build-workspace` does, plus:
+
+- updates external dependency versions, container images, and Gradle wrappers
 - runs compact license audits for each repo
-- runs each repo's cleanup policy
+- runs each repo's cleanup policy at the end
 
-This command is resumable. If it fails mid-run, rerun the same command to continue from the first unfinished repo.
+### Forcing A Clean Rebuild
 
-### Refresh Local Only
+All three accept `--no-cache`, which swaps the normal `build` for a `rebuild`
+(`clean --rerun-tasks --refresh-dependencies`), bypassing Gradle's caches:
 
-`just refresh-local-workspace`
+`just build-workspace --no-cache`
 
-Runs the local-only refresh flow:
-
-- updates internal dependency versions from `mavenLocal()`
-- builds every repo
-- publishes internal producers only when their artifacts changed
-- runs each repo's cleanup policy
-
-Use this when you want the full local publish/build/cleanup cycle without pulling or updating external dependencies.
-
-### Force Rebuild Everything
-
-`just refresh-rebuild-workspace`
-
-Runs the full refresh flow, but forces rebuilds instead of normal builds:
-
-- commits and pulls first
-- updates internal and external dependency versions
-- forces full repo rebuilds
-- republishes internal producers only when their artifacts changed
-- runs compact license audits for each repo
-- runs each repo's cleanup policy
-
-This is the most useful command when you want a full clean-ish verification pass across the workspace.
-
-### Force Rebuild Local Only
-
-`just rebuild-workspace`
-
-Runs the internal-only rebuild path:
-
-- commits and pulls first
-- updates internal versions
-- forces full repo rebuilds
-- republishes internal producers only when their artifacts changed
-
-Unlike `refresh-rebuild-workspace`, this does not run cleanup at the end.
+Use it for a clean-room verification pass, not for the daily loop: it discards every
+up-to-date check, so it rebuilds and re-tests everything regardless of what changed.
 
 ### Install Everything
 
@@ -144,7 +117,7 @@ Rules:
 - invalid step order is rejected
 - use either `build` or `rebuild`, not both
 
-Named workspace commands such as `build-workspace` and `refresh-workspace` are thin wrappers around `execute`.
+Named workspace commands such as `build-workspace` and `update-workspace` are thin wrappers around `execute`.
 
 ### License Audit
 
@@ -164,28 +137,8 @@ Behavior:
 - `license-audit-compact` prints only the compact finding set intended for workspace flows
 - both commands fail on `DENY`
 - both commands also fail on `UNKNOWN`
-- `refresh-workspace` and `refresh-rebuild-workspace` automatically run `license-audit-compact`
-- `build-workspace` does not run license audit
-
-### Reset Resume State
-
-`just reset-workspace-state`
-
-Removes all saved resumable workspace state.
-
-You can also reset a single flow:
-
-`just reset-workspace-state refresh-workspace`
-
-Supported flow names currently include:
-
-- `build-workspace`
-- `refresh-workspace`
-- `refresh-local-workspace`
-- `refresh-rebuild-workspace`
-- `rebuild-workspace`
-
-`just reset-workspace-state all` is equivalent to the default.
+- `update-workspace` automatically runs `license-audit-compact`
+- `build-workspace` and `pull-workspace` do not run license audit
 
 ### Check Requirements
 
@@ -207,15 +160,15 @@ Runs the targeted Temurin JDK update for the machine without triggering a genera
 
 ## Cleanup
 
-Cleanup is repo-local, but the refresh flows run it automatically.
+Cleanup is repo-local, but the workspace flows run it automatically.
 
 Current behavior:
 
-- `build-workspace` does not clean
-- `rebuild-workspace` does not clean
-- `refresh-workspace` cleans
-- `refresh-local-workspace` cleans
-- `refresh-rebuild-workspace` cleans
+- `build-workspace` does not clean, to keep the inner loop short
+- `pull-workspace` cleans
+- `update-workspace` cleans
+
+A full workspace cleanup takes about 20 seconds.
 
 Each repo decides its own retention policy for:
 
@@ -229,21 +182,3 @@ Current retention policy:
 - Docker images use a count-only policy and keep the newest `2` image ids by creation time for each configured image repository
 
 In other words, Maven-local cleanup currently uses a mixed count-and-age rule, while Docker cleanup uses count only.
-
-## Resumability
-
-These named workspace flows are resumable:
-
-- `build-workspace`
-- `refresh-workspace`
-- `refresh-local-workspace`
-- `refresh-rebuild-workspace`
-- `rebuild-workspace`
-
-Resume behavior:
-
-- successful repos are marked complete
-- rerunning the same command resumes from the first unfinished repo
-- failed steps are retried; successful repos are skipped
-- stale saved state older than one hour is discarded automatically
-- use `just reset-workspace-state` if you want to force a full restart from scratch

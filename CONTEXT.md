@@ -31,10 +31,10 @@ by `lattice`. `aggregator` is likewise outside the module lists.
 
 Published internal versions are discovered locally through `mavenLocal()`. Workspace flows now distinguish between:
 
-- `just refresh-workspace`: pull, update, build, publish, cleanup
-- `just build-workspace`: internal-only update, build, publish
-- `just refresh-local-workspace`: internal-only update, build, publish, cleanup
-- `just rebuild-workspace`: pull, internal-only update, rebuild, publish
+- `just build-workspace`: build, publish
+- `just pull-workspace`: pull, build, publish, cleanup
+- `just update-workspace`: update, build, publish, license audit, cleanup
+- all three accept `--no-cache`, which swaps `build` for `rebuild`
 - `just execute ...`: explicit workspace pipelines such as `just execute pull update build publish cleanup`
 
 Workflow invariants:
@@ -59,10 +59,9 @@ Workflow invariants:
 | Command | Description |
 |---------|-------------|
 | `just build` | Build a single project |
-| `just build-workspace` | Internal-only workspace flow: update internal deps, build, publish |
-| `just refresh-workspace` | Full workspace refresh flow: pull, update, build, publish, cleanup |
-| `just refresh-local-workspace` | Local-only workspace flow: update internal deps, build, publish, cleanup |
-| `just rebuild-workspace` | Pull, update internal deps, rebuild, publish |
+| `just build-workspace` | The inner loop: build, publish |
+| `just pull-workspace` | Pull, build, publish, cleanup |
+| `just update-workspace` | Update external versions, build, publish, license audit, cleanup |
 | `just execute ...` | Compose workspace steps explicitly, for example `just execute pull update build publish cleanup` |
 | `just publish` | Publish internal producer outputs to `mavenLocal()` when changed |
 | `just update-all` | Repo-local internal update + external version update + wrapper update |
@@ -101,7 +100,7 @@ In sandboxed environments (e.g., Meta OnDemand), network access may be blocked. 
 
 Jib is incompatible with configuration cache at runtime (`jibDockerBuild` serializes `Project`). In modulith-example and element-service-example, `just build` splits into two Gradle invocations — `build` with config cache, then `jibDockerBuild`/`containerBasedServiceTest` with `--no-configuration-cache`.
 
-During `just execute update` or `just refresh-workspace`, those service repos now skip the standalone `just build` entirely when no pulled commits or update-relevant file changes were produced for the repo.
+During `just execute update` or `just update-workspace`, those service repos now skip the standalone `just build` entirely when no pulled commits or update-relevant file changes were produced for the repo.
 
 ## gradle-plugins
 
@@ -129,7 +128,7 @@ Docker images built by Jib are scanned for vulnerabilities using Trivy (via Test
 - Trivy version and container image versions are managed in `swissknife/container-versions.properties`
 - Update with `just update-container-versions` in swissknife
 - Suppress accepted CVEs in `.trivyignore` per project
-- Base Docker images are now digest-pinned through repo `gradle.properties` policy fields and refreshed by `just execute update` or `just refresh-workspace`
+- Base Docker images are now digest-pinned through repo `gradle.properties` policy fields and refreshed by `just execute update` or `just update-workspace`
 - Repo-local container image updates can contribute extra per-repo summary lines through the workspace event-file contract; today only `swissknife` uses that path
 
 ## Architecture Patterns
