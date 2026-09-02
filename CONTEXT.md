@@ -21,9 +21,13 @@ acme-schema-catalogue   (published Avro/JSON schemas)
 swissknife              (published general-purpose libraries)
        ↓
 pillar                  (published domain-specific libraries)
+lattice                 (published event-driven framework; depends on swissknife only)
        ↓
-tools / examples / facts / lattice / backend-skeleton / modulith-example / element-service-example
+tools / examples / backend-skeleton / modulith-example / element-service-example / quality-scorer
 ```
+
+`facts` is still on disk but **unwired** from the workspace flows — an abandoned exploration, superseded
+by `lattice`. `aggregator` is likewise outside the module lists.
 
 Published internal versions are discovered locally through `mavenLocal()`. Workspace flows now distinguish between:
 
@@ -137,4 +141,9 @@ Docker images built by Jib are scanned for vulnerabilities using Trivy (via Test
 
 ## Active Project: Lattice
 
-Event-driven framework with pure aggregate functions, triage topic pattern, and Pulsar backbone. SDK API defined, in-memory implementation passing basic tests.
+An event-driven, CQRS, event-sourced framework. Restarted from scratch; the earlier SDK/framework/
+connector exploration was removed.
+
+Currently a `usage-example` and `company-stubs` pair — the design is being driven outside-in from
+developer-facing tests, and the framework will be extracted once the usage has a shape. Design
+decisions and open questions live in [`events-framework.md`](events-framework.md).
