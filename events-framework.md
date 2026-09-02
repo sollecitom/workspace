@@ -48,6 +48,10 @@ Company-agnostic. Depends on swissknife only, never pillar.
 | D25 | **Pulsar is the primary adapter. Kafka-API is the second** (Redpanda for local/dev). |
 | D26 | **The broker is the system of record. Any event store is derived** — rebuildable, disposable, with a broker-only fallback. |
 | D27 | Hydration uses a **derived recovery store** (snapshots), in shared storage, keyed by aggregate id. |
+| D28 | **Prescriptive about mechanism. Permissive about shape.** |
+| D29 | Two modules: generic **`core`** (no dependencies) and opinionated **`starter`** built only on core's public API. |
+| D30 | The **test-domain module must compile without importing the framework** — genericity enforced by the compiler, not by discipline. |
+| D31 | The **in-memory implementation must be semantically faithful** — real partitions, positions, per-key ordering, replay. Not a mock. |
 
 ---
 
@@ -76,6 +80,163 @@ stalls must not stall derivation.
 
 Consequence of at-least-once plus side effects: **reactors must be idempotent**, or the framework must
 supply outbound idempotency keys. See Q2.
+
+---
+
+## Genericity and layering
+
+The stated goal is a *highly opinionated* framework; the stated worry is over-prescription. Those only
+conflict if applied to the same things (D28):
+
+> **Mechanism** is what the framework does — commands become events, aggregates are pure, poison halts
+> the partition, queries are journaled, partition ownership is actor ownership. Non-negotiable; it *is*
+> the product. Softening it yields a DI container.
+>
+> **Shape** is what flows through — what an id is, what a command looks like, what a context contains.
+> Entirely the developer's.
+
+### Two modules (D29)
+
+- **`core`** — generic, no defaults, **no dependencies** (coroutines at most). The thing developers code
+  against stays pristine. Notably this means *not* exposing swissknife's `Id` in the public API: that
+  would be prescription via the back door, since every user then inherits swissknife.
+- **`starter`** — opinionated defaults: a stock id, a stock context, standard codecs, batteries.
+
+Adapters (Pulsar, Kafka, NATS, http4k, Avro) depend on swissknife freely. The starter must be written
+using only core's public API — if it needs something core doesn't expose, core is too closed.
+
+### Type parameters
+
+| | Verdict |
+|---|---|
+| Params on the **framework type** — `Framework<CTX, CMD, EVT>` | **Yes, minimum count, unbounded.** |
+| Params on **developer-facing abstractions** — `Query<ANSWER>`, `Aggregate<C, E, S>`, `Decision<E>` | **Required.** These are the typesafety. |
+| Params on **functions** — `fun <C, E, S> registerAggregate(...)` | **Good.** Inferred at the call site, don't escape into the framework's type. |
+| **Reified** params for binding — `inline fun <reified C> command(...)` | **Good.** Lattice already does this. |
+
+**Unbounded is the point.** If the params have no bounds, the framework *cannot* inspect those types and
+is forced to obtain capabilities another way — the strongest possible statement of non-prescription. A
+bound is prescription wearing a type parameter's clothes.
+
+**Count matters, because Kotlin has no associated types** — you can't bundle them behind
+`Framework<D : DomainTypes>` and pull `D.Event` out, the way Scala or Rust would. Each earns its slot:
+
+- `EVT` — **yes**: `Flow<EVT>` gives exhaustive `when` over a sealed domain hierarchy; `Flow<Any>` throws
+  that away.
+- `CMD` — **yes**: `accept(cmd: CMD)` closes the world to *their* commands, which is tighter than any
+  framework supertype can manage (a marker is open by construction).
+- `CTX` — **yes, reluctantly**: context parameters on handler signatures need the type named somewhere.
+- `ID` — **marginal**: include only if typed correlation ids in outcomes matter.
+- `KEY` — **no**: internal plumbing, derived by functions, rarely surfaced.
+
+**Virality is contained by two things:** a `typealias AcmeFramework = Framework<AcmeContext,
+AcmeCommand, AcmeEvent>` at the composition root (docs should lead with it), and a **generic facade over
+a concrete engine** — the engine works in wire/erased terms and the facade casts at exactly one
+boundary, so internal code and third-party extensions don't thread parameters everywhere.
+
+### Open fork: how capabilities are supplied
+
+Both approaches are live. They differ in how the framework obtains what it needs from a domain type.
+
+**Approach A — capability interfaces with a generic id type**
+
+```kotlin
+interface Command<out ID : Any> { val id: ID }
+
+Framework<ID : Any, COMMAND : Command<ID>, ...>
+```
+
+Mandates *structure*, not *type* — materially different from lattice's `Fact { val id: Id }`, which
+mandated both.
+
+| Pros | Cons |
+|---|---|
+| Framework reads `command.id` directly; one less lambda per registration | Member name and shape are mandated — a type with `orderId` needs a delegating property, on every type |
+| `ID` stays theirs — `Command<UUID>`, `Command<OrderId>` | Domain module acquires a framework dependency |
+| Compiler enforces one id type across the app | Composite identity needs a wrapper |
+| `out ID` gives useful covariance | Slippery slope: if `id`, why not `idempotencyKey`, causation, timestamp? Either it grows heavy or the stopping point is arbitrary |
+| Logic and its caches live on objects with a clear lifecycle | Duplicates the envelope, which already owns occurrence identity |
+
+**Approach B — extraction functions supplied at registration**
+
+```kotlin
+registerAggregate<AcmeCommand, AcmeEvent, AcmeState>(
+    handler = BankAccountAggregate,   // types checked
+    idOf    = { it.uuid.toString() }, // shape extracted
+    keyOf   = { it.accountId },
+)
+```
+
+| Pros | Cons |
+|---|---|
+| Domain types need **no** framework import — no supertype, no annotation | Registration is more verbose |
+| Works with types you don't control | Discovery is harder — a lambda list doesn't autocomplete like an interface |
+| Nothing mandated about member names or identity shape | Nowhere natural to hold a cache, if supplied as bare lambdas |
+
+**The question underneath both:** is *occurrence id* domain data or fact metadata?
+
+Note it is **not** invocation context — those are orthogonal (see three-parts above), and an earlier
+version of this argument wrongly conflated them. It's also distinct from the **entity/routing key**
+(`accountId`), which is unambiguously domain data and is extracted by bindings under either approach.
+
+*For fact metadata (→ B):* `PlaceOrder` doesn't intrinsically have an occurrence id — constructing it
+twice yields the same command, submitted as two occurrences. Identity of *the submission* is the
+framework's concern, and if it lives in fact metadata then `Command<ID>` has no members left, leaving a
+member-less bound that the unbounded type parameter dominates. Client-supplied idempotency keys arrive
+as a parameter or header, as HTTP settled with `Idempotency-Key`, not as a body field.
+
+*For domain data (→ A):* the command is the unit a client **retries**, so an id travelling with the
+object is harder to get wrong than one passed alongside it. Identity stays attached to the thing it
+identifies. And behaviour belongs on objects, which have lifecycles that can hold caches — though that
+last point is satisfiable under B too, by grouping extractors into `fun interface`s.
+
+*Not decided. Prototype both against the test-domain module in phase 1 and pick.*
+
+### Behaviour vs data vs lookup
+
+Three kinds, and conflating them causes trouble:
+
+| Kind | Example | Where it lives | Aggregate path? |
+|---|---|---|---|
+| **Behaviour** the object can perform | `handle(state, command)`, `apply(state, event)` | On the object — tell, don't ask | Yes |
+| **Data the framework needs for its own work** | routing key, occurrence id | Extracted — the object can't route itself | Yes, must be pure |
+| **Data that lives elsewhere** | idempotency records, correlation with prior events | A **suspending lookup** — a distinct capability | **No** — violates D3 |
+
+The third is why just-in-time lookups exist: fetch *before* `handle`, write the result as an event, so
+the aggregate stays pure and replay stays deterministic without an external call.
+
+### Capability contract
+
+Whichever approach wins, capabilities are **long-lived, shared, and called concurrently** from every
+partition consumer. That's a contract, not an implementation detail:
+
+- thread-safe caches, not naive maps
+- **bounded** caches — same byte-bounded lesson as the blob cache
+- framework owns construction and disposal; `AutoCloseable` where resources are held
+- **on the aggregate path, pure-modulo-memoization**: a cache may change speed, never results. A
+  capability that broke that would break replay silently
+
+Caching is worth real money here: lattice does `commandBindings.find { it.factType.isAssignableFrom(...) }`
+— a reflective linear scan **per message**. An object precomputes a `Class → binding` map once at
+construction.
+
+`fun interface` gets both ergonomics: a lambda at the call site, a stateful class when someone needs a
+cache, no API change between them.
+
+### The test-domain module is the enforcement mechanism (D30)
+
+Define the fake company's domain in a test-scoped module — `OrderPlaced`, `OrderId`, `AcmeContext` — and
+hold this invariant:
+
+> **The test-domain module must compile without importing the framework.**
+
+Then every accidental coupling — a marker interface that crept in, a required supertype, a framework
+type in a signature — is a compile error in CI rather than something noticed in review months later. A
+real module with a real dependency rule, not a convention.
+
+*(Approach A cannot satisfy this literally, since `Command<ID>` is a framework import. If A wins, the
+rule weakens to "the domain module imports `core` and nothing else" — worth knowing that choosing A
+costs the strongest form of the guarantee.)*
 
 ---
 
@@ -136,14 +297,90 @@ So a scoping mechanism will eventually be wanted — fields marked *chain-scoped
 *step-scoped* (drop after the hop that consumed them). Not building it now, but the growth is structural
 rather than incidental, and the natural pruning point is chain termination.
 
-### Two tiers
+### Three parts, not two
 
-- **Envelope context** — framework-owned and bounded: trace, correlation, causation, actor, tenant,
-  position, provenance. Always propagated, fixed size. swissknife's `correlation/*` already models it.
-- **Domain payload pass-through** — open-ended, grows with the chain, subject to the above.
+A wire record has three distinct sections, and conflating the first two causes trouble:
 
-**Causation is mandatory in the envelope** regardless — it's what makes "go read the source fact" a real
-option when someone needs it.
+| | Owner | Content | Size |
+|---|---|---|---|
+| **Fact metadata** | Framework | Occurrence id, causation, position, timestamp, provenance, schema fingerprint | Bounded, fixed |
+| **Invocation context** | Developer (opaque `CTX`) | Whatever *who is invoking, and under what circumstances* means to them — typically actor, tenant, invocation and action ids, locale, toggles | Bounded, theirs |
+| **Domain payload** | Developer | The fact itself, with pass-through of unknown fields | Open-ended, grows with the chain |
+
+These are orthogonal, not layered. **One invocation can submit several commands; one command can be
+retried under different invocations.** swissknife's `correlation/*` models the second — but as a
+*candidate* for the starter's stock context, never as something core mandates.
+
+**Causation is mandatory in the fact metadata** — it's what makes "go read the source fact" a real
+option when someone needs it. Only the third section is subject to the baggage-growth problem above.
+
+### Three levels of identity
+
+| | Scope | Generated by | Shared across | Lives in |
+|---|---|---|---|---|
+| **Action id** | One user intent | Client | Every invocation that intent spawns | Invocation context |
+| **Invocation id** | One request | Client | Every fact derived from that request | Invocation context |
+| **Occurrence id** | One record in the log | Framework | Nothing — unique per fact | Fact metadata |
+
+**The idempotency key is the originating action id, namespaced by tenant/customer.** Not the occurrence
+id, and not the invocation id.
+
+- *Not the occurrence id* — one invocation produces several facts (`CommandReceived`, then the result
+  event), which cannot share an occurrence id. Lattice collapses these
+  (`idempotencyKey: Id get() = id`); that's wrong under this model.
+- *Not the invocation id* — that only gives **transport-level** idempotency, catching a literal
+  in-memory request retry. The action id gives **business-level** idempotency and survives more: client
+  restart with a persisted pending operation, a fresh request id for the same intent, a retry issued by
+  different code than the original. "The user meant this once" is the property worth enforcing.
+- **Namespaced by tenant/customer** because action ids are client-generated. Without a namespace, a
+  collision lets one tenant's action suppress another tenant's command — a suppression attack, not just
+  a correctness bug.
+
+It must be **client-supplied**, not framework-generated: a framework-generated id would differ on every
+retry, which is exactly the case dedup exists to catch. Client ownership is load-bearing.
+
+### Two capabilities from CTX, not one
+
+The dedup key and the reply-correlation key are **different values**. One button press producing a query
+and a command shares an action id but needs two distinct replies, so keying replies by action id would
+collide.
+
+| Purpose | Value | Needed as |
+|---|---|---|
+| Dedup — *this intent, once* | Namespaced action id | idempotency key, derived from context **and** fact |
+| Reply correlation — *this request's answer* | Invocation id | invocation id, derived from context |
+
+**How these are obtained is the same open fork as A-vs-B above**, applied to CTX rather than to facts —
+`interface Context<out ID : Any> { val invocationId: ID }` versus `invocationIdOf: (CTX) -> Id`.
+Undecided; try both when building.
+
+Two pieces of input for that decision:
+
+- **It may resolve differently here than for facts.** There are dozens of fact types, all domain model,
+  each paying for a mandated supertype. There is typically *one* context type per application, it's
+  infrastructural rather than domain, and the starter ships a stock one anyway. The interface is much
+  cheaper on context than on events.
+- **The dedup key doesn't fit the interface shape either way.** It spans context *and* fact, so it sits
+  naturally on neither object and stays a supplied function or a separate strategy object regardless.
+  Some mixture is likely however the fork resolves.
+
+The dedup key needs the fact as well as the context, because **one action can produce several
+commands** — a checkout button issuing `ReserveStock` and `ChargeCard` shares an action id, and keying
+on that alone would silently drop the second. Access to the fact lets the developer add a discriminator,
+and returning an already-composed, already-namespaced key means **the framework never needs to know what
+a tenant is**.
+
+Which refines the opacity rule: the framework **never inspects CTX structurally, but obtains values via
+declared capabilities** — whether those arrive as interface members or supplied functions. Same pattern,
+and same open fork, as the domain payload.
+
+**A dedup hit returns the original outcome, not an error** — an idempotent retry is entitled to the
+result of the first execution. So the outcome store needs an index by idempotency key, not only by
+invocation id; otherwise a retry arriving with a fresh invocation id has no way to find its answer.
+
+The action id also illustrates why CTX must stay open-ended: genuinely useful for correlating one user
+action across several requests in audit and tracing, and something the framework would never have
+invented on its own.
 
 ### The PII objection, and why it dissolves
 
@@ -726,6 +963,33 @@ nodes. Explicit constraint rather than a discovered one.
 
 ---
 
+## Prior art: lattice
+
+A stubbed exploration — one passing test, most of the surface `TODO`. Not a reference implementation,
+and its state isn't evidence of anything. Useful only as a source of ideas.
+
+**Ideas worth taking:**
+
+- **Module topology** — `sdk/api`, `sdk/test/specification`, `sdk/in-memory/tests`, `framework/api`,
+  `framework/implementation/*`, `framework/connector/embedded`. Already the generic-facade /
+  concrete-engine shape, with a connector seam for a future polyglot path, and careful wiring
+  (`implementation(...)` keeps the engine off the consumer's classpath).
+- **Test-specification-as-interface** — an interface of `@Test` methods with one abstract factory, so a
+  new implementation is four lines. The right conformance mechanism for every port here.
+- **The `Bindings` DSL shape** — `bindings { command<Withdraw> { it.accountId } }`. Routing declared at
+  registration, domain type untouched. Ancestor of Approach B; generalise from routing keys to ids and
+  codecs.
+- `Decision` (Accept / AcceptWithResponse / Reject) · the three-way outcome split · outcomes not
+  carrying the domain event.
+
+**Ideas to avoid**, since they're the inverse of what's decided here: `Fact { val id: Id }` mandates both
+a framework supertype and swissknife's `Id` on domain data; `Lattice` has no type parameters, so
+`eventHistory(): Flow<Event>` loses exhaustive `when`; `Aggregate<COMMAND : Command, EVENT, STATE>`
+bounds the parameter that shouldn't be and leaves unbounded the one the engine needs; dispatch is a
+reflective linear scan per message with silent first-match-wins.
+
+---
+
 ## Open — needs a decision
 
 **Q1 — serialization. Still the blocker.**
@@ -740,8 +1004,17 @@ nodes. Explicit constraint rather than a discovered one.
 pass-through constraint above: whichever is chosen must allow retaining the raw record alongside the
 mapped type.
 
-**Q2** — Idempotency for reactors: dedup in framework state, outbound idempotency keys, or transport?
-More urgent than it looked, since at-least-once plus side effects guarantees duplicate external calls.
+**Q2** — Idempotency. Key definition is settled (namespaced action id, via `idempotencyKeyOf`); the
+mechanism isn't. The developer supplies a **pure key extractor**; the framework owns the store and does
+the check/record. Open:
+
+- Where the dedup store lives, and its retention (an action id must stay deduped for at least as long as
+  a client might retry — hours? days?).
+- **For reactors with side effects**: is the record written before or after the call? Before risks a
+  false "already done" after a crash; after risks a duplicate call. No free lunch — probably a declared
+  per-reactor choice between at-most-once and at-least-once semantics.
+- Interaction with the outcome store, which must be indexed by idempotency key so a dedup hit can return
+  the original outcome.
 
 **Q4** — How much invocation context (tenant, actor, trace) is framework-owned vs application-owned?
 swissknife's `correlation/*` models it and it must flow HTTP → log → aggregate → projection.
@@ -780,8 +1053,8 @@ growth is measurable.
 
 | Phase | Content | Proves |
 |---|---|---|
-| 0 | Resolve Q1. Repo skeleton. | — |
-| 1 | Core model, three participants, in-memory everything, contract test spec. No broker, no HTTP. | D3, D4, D5, D18, D19 |
+| 0 | Resolve Q1. Repo skeleton: `core` (no deps) + `starter` + test-domain module. | D29, D30 |
+| 1 | Core model, three participants, **semantically faithful** in-memory implementation, contract test spec. Prototype capability Approach A vs B and pick. No broker, no HTTP. | D3, D4, D5, D18, D19, D28, D31 |
 | 2 | HTTP surface derived from registrations + OpenAPI. Tiers 1–2 at the edge. | D1, D2, D6, D7 |
 | 3 | Request-reply: durable outcome store, three modes, outcome-as-event + relay. | D8, D20 |
 | 4 | Broker port + conformance suite + **Pulsar and Kafka-API together** + `provision`. Schema registry, `FULL_TRANSITIVE`, upcasting. | D10, D15, D23, D24, D25 |
