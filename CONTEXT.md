@@ -145,4 +145,4 @@ connector exploration was removed.
 
 Currently a `usage-example` and `company-stubs` pair — the design is being driven outside-in from
 developer-facing tests, and the framework will be extracted once the usage has a shape. Design
-decisions and open questions live in [`events-framework.md`](events-framework.md).
+decisions and open questions live in [`lattice/events-framework.md`](lattice/events-framework.md).
