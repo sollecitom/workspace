@@ -23,7 +23,7 @@ swissknife              (published general-purpose libraries)
 pillar                  (published domain-specific libraries)
 lattice                 (published event-driven framework; depends on swissknife only)
        ↓
-tools / examples / backend-skeleton / modulith-example / element-service-example / quality-scorer
+tools / examples / modulith-example / element-service-example / quality-scorer
 ```
 
 `facts` is still on disk but **unwired** from the workspace flows — an abandoned exploration, superseded

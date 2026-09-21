@@ -4,7 +4,7 @@ set quiet
 
 # Project modules (order matters: dependencies first)
 publishable := "gradle-plugins acme-schema-catalogue swissknife pillar lattice"
-non_publishable := "tools examples backend-skeleton modulith-example element-service-example quality-scorer"
+non_publishable := "tools examples modulith-example element-service-example quality-scorer"
 all_modules := publishable + " " + non_publishable
 workspace_and_modules := "workspace " + all_modules
 
