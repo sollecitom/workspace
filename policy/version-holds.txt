@@ -1,0 +1,9 @@
+# Homebrew versions to skip during `just update-workspace` / `just install-workspace`, until a date.
+# One hold per line: kind name version until reason
+#   kind     only `brew` for now (formulae and casks)
+#   version  prefix of the version to skip: `27` matches 27, 27.0.1 and 27,35
+#   until    last day the hold applies (YYYY-MM-DD); afterwards the upgrade runs and the expired hold is reported
+#   reason   free text, required
+#
+# Example:
+# brew temurin 27 2026-11-15 Gradle 9.8 fails on JDK 27

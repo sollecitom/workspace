@@ -5,10 +5,11 @@ repo_root="."
 keep_versions=""
 max_age_days=""
 maven_local="${HOME}/.m2/repository"
+plugin_marker_namespace=""
 
 usage() {
     cat <<'EOF'
-Usage: cleanup-maven-local.sh --keep <count> --max-age-days <days> [--repo-root <path>] [--maven-local <path>]
+Usage: cleanup-maven-local.sh --keep <count> --max-age-days <days> [--repo-root <path>] [--maven-local <path>] [--plugin-markers <plugin-id-namespace>]
 EOF
 }
 
@@ -28,6 +29,10 @@ while [ "$#" -gt 0 ]; do
             ;;
         --maven-local)
             maven_local="${2:?missing value for --maven-local}"
+            shift 2
+            ;;
+        --plugin-markers)
+            plugin_marker_namespace="${2:?missing value for --plugin-markers}"
             shift 2
             ;;
         -h|--help)
@@ -91,26 +96,39 @@ fi
 group_path="$(printf '%s' "$project_group" | tr '.' '/')"
 artifacts_root="${maven_local}/${group_path}"
 display_artifacts_root="$(display_path "$artifacts_root")"
+if [ -n "$plugin_marker_namespace" ]; then
+    display_artifacts_root="${display_artifacts_root} and plugin markers under $(display_path "${maven_local}/$(printf '%s' "$plugin_marker_namespace" | tr '.' '/')")"
+fi
 
 if [ ! -d "$artifacts_root" ]; then
     echo "No Maven-local artifact root exists at ${display_artifacts_root}; nothing to clean for ${project_group}."
     exit 0
 fi
 
-artifact_directory_count="$(find "$artifacts_root" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
-version_directory_count="$(find "$artifacts_root" -mindepth 2 -maxdepth 2 -type d | wc -l | tr -d ' ')"
+artifact_directories() {
+    find "$artifacts_root" -mindepth 1 -maxdepth 1 -type d -print0
+    if [ -n "$plugin_marker_namespace" ]; then
+        find "${maven_local}/$(printf '%s' "$plugin_marker_namespace" | tr '.' '/')" -mindepth 2 -maxdepth 2 -type d \
+            -name "${plugin_marker_namespace}.*.gradle.plugin" -print0
+    fi
+}
+
+artifact_directory_count=0
+version_directory_count=0
 
 current_epoch="$(date +%s)"
 cutoff_epoch=$(( current_epoch - (max_age_days * 86400) ))
 removed_count=0
 
 while IFS= read -r -d '' artifact_dir; do
+    artifact_directory_count=$((artifact_directory_count + 1))
     rank=0
     while IFS= read -r entry; do
         [ -n "$entry" ] || continue
         version="${entry%%$'\t'*}"
         version_dir="${entry#*$'\t'}"
         rank=$((rank + 1))
+        version_directory_count=$((version_directory_count + 1))
 
         if [ -n "$current_version" ] && [ "$version" = "$current_version" ]; then
             continue
@@ -132,7 +150,7 @@ while IFS= read -r -d '' artifact_dir; do
             | awk -F/ '{ print $NF "\t" $0 }' \
             | sort -t $'\t' -k1,1Vr
     )
-done < <(find "$artifacts_root" -mindepth 1 -maxdepth 1 -type d -print0)
+done < <(artifact_directories)
 
 if [ "$removed_count" -eq 0 ]; then
     echo "Found ${artifact_directory_count} artifact directories and ${version_directory_count} version directories under ${display_artifacts_root} for ${project_group}; nothing matched the cleanup rules (keep ${keep_versions}, max age ${max_age_days}d)."

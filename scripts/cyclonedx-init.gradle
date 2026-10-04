@@ -310,6 +310,7 @@ rootProject { workspaceRoot ->
         inputs.property("licenseDependencySnapshotVersion", "1")
         inputs.files(taskInputFilesFor(workspaceRoot))
         dependsOn(workspaceRoot.allprojects.collect { it.tasks.named("licenseDependencySnapshot") })
+        inputs.files(workspaceRoot.allprojects.collect { directSnapshotOutputFileFor(it) })
         outputs.file(aggregateSnapshotOutputFileFor(workspaceRoot))
 
         doLast {
@@ -355,6 +356,7 @@ rootProject { workspaceRoot ->
         inputs.property("licenseSbomBootstrapVersion", "2")
         inputs.files(taskInputFilesFor(workspaceRoot))
         dependsOn(workspaceRoot.allprojects.collect { it.tasks.named("cyclonedxDirectBom") })
+        inputs.files(workspaceRoot.allprojects.collect { directOutputFileFor(it) })
         outputs.file(aggregateOutputFileFor(workspaceRoot))
 
         doLast {

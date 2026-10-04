@@ -40,10 +40,10 @@ cleanup:
     bash ./scripts/ensure-workspace-requirements.sh update-java
 
 @license-audit:
-    bash ./scripts/workspace.sh license-audit '{{workspace_and_modules}}' '{{publishable}}'
+    bash ./scripts/workspace.sh license-audit '{{workspace_and_modules}}'
 
 @license-audit-compact:
-    bash ./scripts/workspace.sh license-audit-compact '{{workspace_and_modules}}' '{{publishable}}'
+    bash ./scripts/workspace.sh license-audit-compact '{{workspace_and_modules}}'
 
 # Workspace operations
 # Workflow invariants:
@@ -70,7 +70,7 @@ cleanup:
     {{ if flag == "" { "just execute update build publish license-audit-compact cleanup" } else if flag == "--no-cache" { "just execute update rebuild publish license-audit-compact cleanup" } else { error("Unknown flag '" + flag + "' (supported: --no-cache)") } }}
 
 @execute +steps:
-    bash ./scripts/workspace.sh execute '{{workspace_and_modules}}' '{{publishable}}' {{steps}}
+    bash ./scripts/workspace.sh execute '{{workspace_and_modules}}' {{steps}}
 
 @install-workspace:
     bash ./scripts/workspace.sh install '{{all_modules}}'

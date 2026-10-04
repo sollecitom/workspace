@@ -3,7 +3,6 @@ set -euo pipefail
 
 command_name="${1:?missing command}"
 modules="${2:-}"
-publishable_modules="${3:-}"
 start_dir="$(pwd)"
 summary_file=""
 pipeline_update_summary_file=""
@@ -16,21 +15,14 @@ base_image_follow_latest=0
 base_image_fallback_allowed=0
 base_image_repository=""
 base_image_variant=""
-base_image_runtime_variant=""
 base_image_current_param=""
-base_image_current_runtime_param=""
 base_image_candidate_param=""
-base_image_candidate_runtime_param=""
 base_image_candidate_tag=""
-base_image_candidate_runtime_tag=""
 base_image_fallback_param=""
-base_image_fallback_runtime_param=""
 base_image_fallback_tag=""
-base_image_fallback_runtime_tag=""
 base_image_latest_major=""
 base_image_target_major=""
 base_image_gradle_backup=""
-base_image_dockerfile_backup=""
 base_image_update_skip_reason=""
 
 cleanup() {
@@ -44,9 +36,6 @@ cleanup() {
     fi
     if [ -n "$base_image_gradle_backup" ]; then
         rm -f "$base_image_gradle_backup"
-    fi
-    if [ -n "$base_image_dockerfile_backup" ]; then
-        rm -f "$base_image_dockerfile_backup"
     fi
 }
 
@@ -78,9 +67,9 @@ print_header() {
 
 sanitize_gradle_output() {
     perl -pe '
-        s/\e\][^\a]*(?:\a|\e\\\\)//g;
+        s/\e\][^\a]*?(?:\a|\e\\)//g;
         s/\e\[[0-?]*[ -\/]*[@-~]//g;
-    ' | tr -d '\000-\010\013\014\016-\037\177'
+    ' | tr -d '\000-\010\013-\037\177'
 }
 
 clear_workspace_events() {
@@ -99,47 +88,23 @@ reset_base_image_state() {
     base_image_fallback_allowed=0
     base_image_repository=""
     base_image_variant=""
-    base_image_runtime_variant=""
     base_image_current_param=""
-    base_image_current_runtime_param=""
     base_image_candidate_param=""
-    base_image_candidate_runtime_param=""
     base_image_candidate_tag=""
-    base_image_candidate_runtime_tag=""
     base_image_fallback_param=""
-    base_image_fallback_runtime_param=""
     base_image_fallback_tag=""
-    base_image_fallback_runtime_tag=""
     base_image_latest_major=""
     base_image_target_major=""
     base_image_update_skip_reason=""
     if [ -n "$base_image_gradle_backup" ]; then
         rm -f "$base_image_gradle_backup"
     fi
-    if [ -n "$base_image_dockerfile_backup" ]; then
-        rm -f "$base_image_dockerfile_backup"
-    fi
     base_image_gradle_backup=""
-    base_image_dockerfile_backup=""
 }
 
 ensure_workspace_requirements() {
     local mode="$1"
     bash "$start_dir/scripts/ensure-workspace-requirements.sh" "$mode"
-}
-
-# Resumability is scoped to a named workspace flow (or to an `execute` step
-# signature when no explicit flow name is supplied). A repo is considered
-# complete only after all requested steps for that repo have succeeded.
-count_modules() {
-    local count=0
-    local module_name
-
-    for module_name in $modules; do
-        count=$((count + 1))
-    done
-
-    printf '%s\n' "$count"
 }
 
 stop_local_gradle_processes() {
@@ -217,15 +182,13 @@ run_just_recipe_with_gradle_lock_retry() {
     last_recipe_log_file="$log_file"
     printf -v shell_command 'cd %q && just %q' "$(pwd)" "$recipe"
 
-    run_command_with_live_logging "$shell_command" "$log_file"
-    exit_code="$?"
+    run_command_with_live_logging "$shell_command" "$log_file" && exit_code=0 || exit_code=$?
 
     if [ "$exit_code" -ne 0 ] && grep -q 'Timeout waiting to lock journal cache' "$log_file"; then
         echo "Gradle cache lock detected while running '$recipe'; stopping daemons and retrying once..."
         stop_local_gradle_processes
         : > "$log_file"
-        run_command_with_live_logging "$shell_command" "$log_file"
-        exit_code="$?"
+        run_command_with_live_logging "$shell_command" "$log_file" && exit_code=0 || exit_code=$?
     fi
 
     return "$exit_code"
@@ -312,24 +275,8 @@ resolve_tag_for_major() {
 
 resolve_image_digest() {
     local image="$1"
-    local target_architecture="amd64"
-    local current_os
-    local current_architecture
 
-    current_os=$(uname -s)
-    current_architecture=$(uname -m)
-
-    if [ "$current_os" = "Darwin" ] && { [ "$current_architecture" = "arm64" ] || [ "$current_architecture" = "aarch64" ]; }; then
-        target_architecture="arm64"
-    fi
-
-    docker buildx imagetools inspect "$image" --raw \
-        | jq -r '
-            .manifests[]
-            | select(.platform.os == "linux" and .platform.architecture == "'"$target_architecture"'")
-            | .digest
-        ' \
-        | awk 'NR == 1 { print; exit }'
+    docker buildx imagetools inspect "$image" --format '{{.Manifest.Digest}}'
 }
 
 resolve_image_reference() {
@@ -339,7 +286,7 @@ resolve_image_reference() {
 
     digest=$(resolve_image_digest "${repository}:${tag}")
     if [ -z "$digest" ]; then
-        echo "Failed to resolve linux/amd64 digest for ${repository}:${tag}" >&2
+        echo "Failed to resolve the image index digest for ${repository}:${tag}" >&2
         exit 1
     fi
 
@@ -366,46 +313,11 @@ image_major_from_ref() {
     fi
 }
 
-replace_from_line() {
-    local dockerfile="$1"
-    local line_number="$2"
-    local image="$3"
-    local tmp_file
-
-    tmp_file=$(mktemp)
-    awk -v line_number="$line_number" -v image="$image" '
-        BEGIN { from_count = 0 }
-        /^FROM / {
-            from_count++
-            if (from_count == line_number) {
-                line = $0
-                sub(/^FROM [^ ]+/, "FROM " image, line)
-                print line
-                next
-            }
-        }
-        { print }
-    ' "$dockerfile" > "$tmp_file"
-    mv "$tmp_file" "$dockerfile"
-}
-
-update_dockerfile_base_images() {
-    local builder_image="$1"
-    local runtime_image="$2"
-
-    [ -f Dockerfile ] || return 0
-    replace_from_line Dockerfile 1 "$builder_image"
-    if [ -n "$runtime_image" ]; then
-        replace_from_line Dockerfile 2 "$runtime_image"
-    fi
-}
-
 prepare_base_image_policy() {
     local current_major
     local configured_major
     local latest_tag
     local target_tag
-    local runtime_target_tag
 
     reset_base_image_state
     workspace_events_file="$(pwd)/.update-workspace-events"
@@ -416,7 +328,6 @@ prepare_base_image_policy() {
     base_image_repository=$(property_value gradle.properties dockerBaseImageRepository)
     base_image_variant=$(property_value gradle.properties dockerBaseImageVariant)
     configured_major=$(property_value gradle.properties dockerBaseImageMajor)
-    base_image_runtime_variant=$(property_value gradle.properties dockerRuntimeBaseImageVariant)
 
     if [ -z "$base_image_repository" ] || [ -z "$base_image_variant" ] || [ -z "$configured_major" ]; then
         return 0
@@ -429,16 +340,10 @@ prepare_base_image_policy() {
 
     base_image_policy_active=1
     base_image_current_param=$(property_value gradle.properties dockerBaseImageParam)
-    base_image_current_runtime_param=$(property_value gradle.properties dockerRuntimeBaseImageParam)
     current_major=$(image_major_from_ref "$base_image_current_param")
 
     base_image_gradle_backup=$(mktemp)
     cp gradle.properties "$base_image_gradle_backup"
-
-    if [ -f Dockerfile ]; then
-        base_image_dockerfile_backup=$(mktemp)
-        cp Dockerfile "$base_image_dockerfile_backup"
-    fi
 
     latest_tag=$(resolve_latest_tag "$base_image_repository" "$base_image_variant")
     if [ -z "$latest_tag" ]; then
@@ -468,17 +373,6 @@ prepare_base_image_policy() {
     base_image_candidate_param=$(resolve_image_reference "$base_image_repository" "$target_tag")
     set_property_value gradle.properties dockerBaseImageParam "$base_image_candidate_param"
 
-    if [ -n "$base_image_runtime_variant" ]; then
-        runtime_target_tag=$(resolve_tag_for_major "$base_image_repository" "$base_image_runtime_variant" "$base_image_target_major")
-        if [ -z "$runtime_target_tag" ]; then
-            echo "Failed to resolve ${base_image_repository}:${base_image_target_major}-${base_image_runtime_variant}" >&2
-            exit 1
-        fi
-        base_image_candidate_runtime_tag="$runtime_target_tag"
-        base_image_candidate_runtime_param=$(resolve_image_reference "$base_image_repository" "$runtime_target_tag")
-        set_property_value gradle.properties dockerRuntimeBaseImageParam "$base_image_candidate_runtime_param"
-        update_dockerfile_base_images "$base_image_candidate_param" "$base_image_candidate_runtime_param"
-    fi
 
     if [ "$base_image_follow_latest" -eq 1 ] && [ -n "$current_major" ] && [ "$base_image_target_major" -gt "$current_major" ]; then
         local fallback_tag
@@ -490,17 +384,6 @@ prepare_base_image_policy() {
         fi
         base_image_fallback_tag="$fallback_tag"
         base_image_fallback_param=$(resolve_image_reference "$base_image_repository" "$fallback_tag")
-
-        if [ -n "$base_image_runtime_variant" ]; then
-            local fallback_runtime_tag
-            fallback_runtime_tag=$(resolve_tag_for_major "$base_image_repository" "$base_image_runtime_variant" "$current_major")
-            if [ -z "$fallback_runtime_tag" ]; then
-                echo "Failed to resolve fallback image ${base_image_repository}:${current_major}-${base_image_runtime_variant}" >&2
-                exit 1
-            fi
-            base_image_fallback_runtime_tag="$fallback_runtime_tag"
-            base_image_fallback_runtime_param=$(resolve_image_reference "$base_image_repository" "$fallback_runtime_tag")
-        fi
     fi
 }
 
@@ -508,21 +391,18 @@ restore_base_image_files() {
     if [ -n "$base_image_gradle_backup" ] && [ -f "$base_image_gradle_backup" ]; then
         cp "$base_image_gradle_backup" gradle.properties
     fi
-    if [ -n "$base_image_dockerfile_backup" ] && [ -f "$base_image_dockerfile_backup" ]; then
-        cp "$base_image_dockerfile_backup" Dockerfile
-    fi
 }
 
 apply_base_image_fallback() {
     [ "$base_image_fallback_allowed" -eq 1 ] || return 1
 
     set_property_value gradle.properties dockerBaseImageParam "$base_image_fallback_param"
-    if [ -n "$base_image_fallback_runtime_param" ]; then
-        set_property_value gradle.properties dockerRuntimeBaseImageParam "$base_image_fallback_runtime_param"
-        update_dockerfile_base_images "$base_image_fallback_param" "$base_image_fallback_runtime_param"
-    fi
 
-    append_workspace_event "Java image fallback: ${base_image_candidate_tag} failed build; kept ${base_image_fallback_tag}."
+    local message="Java image fallback: ${base_image_candidate_tag} failed build; kept ${base_image_fallback_tag}."
+    append_workspace_event "$message"
+    if [ -n "$pipeline_update_summary_file" ]; then
+        printf '  %s\n' "$message" >> "$pipeline_update_summary_file"
+    fi
 }
 
 collect_module_summary() {
@@ -645,20 +525,9 @@ print_summary_box() {
     echo ""
 }
 
-module_is_publishable() {
-    [[ " $publishable_modules " =~ " $1 " ]]
-}
-
 just_recipe_exists() {
     local recipe="$1"
     just --summary 2>/dev/null | tr ' ' '\n' | grep -Fxq "$recipe"
-}
-
-reset_summary_file() {
-    if [ -n "$summary_file" ] && [ -f "$summary_file" ]; then
-        rm -f "$summary_file"
-    fi
-    summary_file=$(mktemp)
 }
 
 run_module_pull() {
@@ -814,90 +683,6 @@ run_module_license_audit() {
     echo "✓ $module license audit completed successfully"
 }
 
-run_step_pull() {
-    local module
-    for module in $modules; do
-        run_module_pull "$module"
-    done
-    echo ""
-    echo "✓ All modules pulled successfully!"
-}
-
-run_step_update() {
-    local module
-    reset_summary_file
-    for module in $modules; do
-        run_module_update "$module"
-    done
-    print_summary_box "UPDATE SUMMARY" "No upgrade-related changes detected."
-    echo "✓ All modules updated successfully!"
-}
-
-run_step_update_internal() {
-    local module
-
-    reset_summary_file
-    for module in $modules; do
-        run_module_update_internal "$module"
-    done
-    print_summary_box "INTERNAL UPDATE SUMMARY" "No internal dependency changes detected."
-    echo "✓ All modules updated internal dependencies successfully!"
-}
-
-run_step_build() {
-    local module
-
-    reset_summary_file
-
-    for module in $modules; do
-        run_module_build "$module"
-    done
-
-    print_summary_box "BUILD SUMMARY" "No build-triggered dependency changes detected."
-    echo "✓ All modules built successfully!"
-}
-
-run_step_rebuild() {
-    local module
-
-    for module in $modules; do
-        run_module_rebuild "$module"
-    done
-
-    echo "✓ All modules rebuilt successfully!"
-}
-
-run_step_publish() {
-    local module
-
-    for module in $modules; do
-        run_module_publish "$module"
-    done
-
-    echo ""
-    echo "✓ All module publish steps completed successfully!"
-}
-
-run_step_cleanup() {
-    local module
-
-    for module in $modules; do
-        run_module_cleanup "$module"
-    done
-
-    echo ""
-    echo "✓ All modules cleaned successfully!"
-}
-
-run_step_push() {
-    local module
-    for module in $modules; do
-        run_module_push "$module"
-    done
-    echo ""
-    echo "✓ All modules pushed successfully!"
-}
-
 run_step_license_audit() {
     local module
     local compact_mode="${1:-0}"
@@ -914,7 +699,7 @@ execute_requires_workspace_requirements() {
     local step
     for step in "$@"; do
         case "$step" in
-            pull|update|update-internal|build|publish|rebuild|reset|license-audit|license-audit-compact)
+            pull|update|update-internal|build|publish|rebuild|license-audit|license-audit-compact)
                 return 0
                 ;;
         esac
@@ -1061,15 +846,17 @@ run_module_pipeline() {
 }
 
 run_execute_pipeline() {
-    shift 3
+    shift 2
     local steps=("$@")
     local module
     local original_summary_file="$summary_file"
 
     validate_execute_steps "${steps[@]}"
 
-    if execute_requires_workspace_requirements "${steps[@]}"; then
+    if pipeline_includes_step update "${steps[@]}"; then
         ensure_workspace_requirements update
+    elif execute_requires_workspace_requirements "${steps[@]}"; then
+        ensure_workspace_requirements check
     fi
 
     # Summaries only need to survive this run, so they are plain temp files cleaned up by cleanup().
@@ -1099,66 +886,13 @@ run_execute_pipeline() {
 }
 
 case "$command_name" in
-    update)
-        ensure_workspace_requirements update
-        run_step_update
+    license-audit)
+        ensure_workspace_requirements check
+        run_step_license_audit
         ;;
-    update-internal)
-        ensure_workspace_requirements update
-        run_step_update_internal
-        ;;
-    pull|reset|push|rebuild|build|cleanup|publish|license-audit|license-audit-compact)
-        if [ "$command_name" = "license-audit" ]; then
-            ensure_workspace_requirements update
-            run_step_license_audit
-            exit 0
-        fi
-        if [ "$command_name" = "license-audit-compact" ]; then
-            ensure_workspace_requirements update
-            run_step_license_audit 1
-            exit 0
-        fi
-        if [ "$command_name" = "cleanup" ]; then
-            run_step_cleanup
-            exit 0
-        fi
-        if [ "$command_name" = "pull" ]; then
-            run_step_pull
-            exit 0
-        fi
-        if [ "$command_name" = "build" ]; then
-            run_step_build
-            exit 0
-        fi
-        if [ "$command_name" = "rebuild" ]; then
-            run_step_rebuild
-            exit 0
-        fi
-        if [ "$command_name" = "publish" ]; then
-            run_step_publish
-            exit 0
-        fi
-        if [ "$command_name" = "push" ]; then
-            run_step_push
-            exit 0
-        fi
-        for module in $modules; do
-            case "$command_name" in
-                reset) print_header "Resetting" "$module" ;;
-            esac
-            cd_module "$module"
-            case "$command_name" in
-                reset)
-                    git clean -fdx && git reset --hard
-                    just build
-                    ;;
-            esac
-            echo "✓ $module ${command_name}ed successfully"
-        done
-        echo ""
-        case "$command_name" in
-            reset) echo "✓ All modules reset successfully!" ;;
-        esac
+    license-audit-compact)
+        ensure_workspace_requirements check
+        run_step_license_audit 1
         ;;
     execute)
         run_execute_pipeline "$@"

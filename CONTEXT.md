@@ -2,7 +2,7 @@
 
 ## Overview
 
-Personal multi-project Kotlin/JVM workspace. All projects are sibling git repos under `~/workspace`, managed together via a root `justfile`.
+Personal multi-project Kotlin/JVM workspace. Each project is its own git repo in a subdirectory of this workspace repo (ignored by its `.gitignore`), managed together via a root `justfile`.
 
 Normal repos now consume internal libraries and conventions by explicit published version from `mavenLocal()`. Composite `includeBuild(...)` is no longer the normal workspace path; a future separate aggregator repo may still use it for cross-repo development.
 
@@ -50,6 +50,7 @@ Workflow invariants:
 - **Kotlin**, **Temurin JDK** on the machine, **JUnit 5 + AssertK**
 - **Configuration cache** enabled across all projects
 - **`just`** for task automation — all recipes use kebab-case
+- Machine prerequisites are upgraded only by `install-workspace` / `update-workspace` (or `just ensure-workspace-requirements`); every other flow runs the `check` mode of `scripts/ensure-workspace-requirements.sh`. Homebrew versions can be skipped until a date via `policy/version-holds.txt` (format documented in the file and in README.md).
 - Workspace prerequisites are managed centrally from the root workspace scripts:
   - `just`, `jq`, Temurin via Homebrew
   - `git`, `curl`, Docker with `buildx`
@@ -85,7 +86,7 @@ Timeout waiting to lock journal cache (.gradle/caches/journal-1)
 pkill -f "GradleDaemon" 2>/dev/null; pkill -f "gradle" 2>/dev/null; sleep 3
 ```
 
-All projects use `org.gradle.daemon=false` to avoid daemon accumulation, but background Kotlin compiler daemons can still hold locks.
+All workspace repos use `org.gradle.daemon=false` and `kotlin.compiler.execution.strategy=in-process` to avoid daemon accumulation.
 
 ### Sandbox / Network Restrictions
 
@@ -99,8 +100,6 @@ In sandboxed environments (e.g., Meta OnDemand), network access may be blocked. 
 ### Jib and Configuration Cache
 
 Jib is incompatible with configuration cache at runtime (`jibDockerBuild` serializes `Project`). In modulith-example and element-service-example, `just build` splits into two Gradle invocations — `build` with config cache, then `jibDockerBuild`/`containerBasedServiceTest` with `--no-configuration-cache`.
-
-During `just execute update` or `just update-workspace`, those service repos now skip the standalone `just build` entirely when no pulled commits or update-relevant file changes were produced for the repo.
 
 ## gradle-plugins
 
@@ -130,6 +129,15 @@ Docker images built by Jib are scanned for vulnerabilities using Trivy (via Test
 - Suppress accepted CVEs in `.trivyignore` per project
 - Base Docker images are now digest-pinned through repo `gradle.properties` policy fields and refreshed by `just execute update` or `just update-workspace`
 - Repo-local container image updates can contribute extra per-repo summary lines through the workspace event-file contract; today only `swissknife` uses that path
+
+## License Audit
+
+`just license-audit` (and `license-audit-compact` in `update-workspace`) checks every external dependency against `policy/license-policy.yml`. The full mechanics, including both caching layers and the known per-project gap, are in README.md under *License Audit*. The rules that matter when changing it:
+
+- The dependency list comes from `scripts/cyclonedx-init.gradle`: per-project `licenseDependencySnapshot` tasks merged by a root `aggregateLicenseDependencySnapshot` (and `cyclonedxDirectBom` → `cyclonedxBom` for SBOMs).
+- Caching is two-layered. The audit tool fingerprints the repo's build files before invoking Gradle, then Gradle's up-to-date checks skip unchanged snapshot tasks.
+- Invariant: **any task that reads another task's output must declare that output as an input.** The aggregates once declared only root build files, so a subproject dependency change left the aggregate `UP-TO-DATE` and the audit silently skipped the new dependency.
+- Force a re-check with `FORCE_LICENSE_AUDIT=1 just license-audit`, or delete the repo's `build/reports/license-audit/` to bypass both layers.
 
 ## Architecture Patterns
 

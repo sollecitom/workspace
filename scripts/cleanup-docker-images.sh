@@ -77,11 +77,17 @@ cleanup_repository() {
     if [ -n "$inspect_ids" ]; then
         # Docker returns one formatted line per inspected image; using --no-trunc
         # keeps ids stable between `docker image ls` and `docker image inspect`.
-        docker image inspect $inspect_ids --format '{{.Id}}\t{{.Created}}' \
+        docker image inspect $inspect_ids --format '{{.Id}}{{"\t"}}{{.Metadata.LastTagTime}}' \
             | awk -F'\t' '{ print $2 "\t" $1 }' > "$dated_ids_file"
     fi
 
     sort -r "$dated_ids_file" | awk -F'\t' -v keep="$keep_images" 'NR <= keep { print $2 }' > "$kept_ids_file"
+
+    if ! grep -Fxqf "$kept_ids_file" "$unique_ids_file"; then
+        rm -f "$refs_file" "$unique_ids_file" "$dated_ids_file" "$kept_ids_file" "$tags_to_remove_file"
+        echo "Warning: could not determine which ${repository} images to keep; skipping cleanup." >&2
+        return 0
+    fi
 
     while IFS=$'\t' read -r _repo tag image_id; do
         [ -n "$tag" ] || continue
@@ -94,17 +100,22 @@ cleanup_repository() {
 
     if [ "$remove_count" -eq 0 ]; then
         rm -f "$refs_file" "$unique_ids_file" "$dated_ids_file" "$kept_ids_file" "$tags_to_remove_file"
-        echo "No Docker cleanup needed for ${repository} (keeping latest ${keep_images} image ids by creation time)."
+        echo "No Docker cleanup needed for ${repository} (keeping latest ${keep_images} image ids by tag time)."
         return 0
     fi
 
+    remove_count="0"
     while IFS= read -r image_ref; do
         [ -n "$image_ref" ] || continue
-        docker image rm "$image_ref" >/dev/null
+        if docker image rm "$image_ref" >/dev/null; then
+            remove_count=$((remove_count + 1))
+        else
+            echo "Warning: could not remove ${image_ref}; skipping." >&2
+        fi
     done < "$tags_to_remove_file"
 
     rm -f "$refs_file" "$unique_ids_file" "$dated_ids_file" "$kept_ids_file" "$tags_to_remove_file"
-    echo "Removed ${remove_count} old Docker tags for ${repository} (kept latest ${keep_images} image ids by creation time)."
+    echo "Removed ${remove_count} old Docker tags for ${repository} (kept latest ${keep_images} image ids by tag time)."
 }
 
 for repository in "${image_repositories[@]}"; do

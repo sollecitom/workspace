@@ -9,7 +9,7 @@ Bootstrap requirements:
 1. [Homebrew](https://brew.sh/)
 2. [Just](https://github.com/casey/just) command runner
 
-Workspace-managed requirements checked during `just install-workspace` and `just update-workspace`:
+Workspace-managed requirements, installed or upgraded by `just install-workspace` and `just update-workspace` (every other workspace flow only checks that they are present):
 
 1. `jq`
 2. Temurin JDK via Homebrew
@@ -20,8 +20,9 @@ Workspace-managed requirements checked during `just install-workspace` and `just
 Notes:
 
 - Workspace install/update uses targeted Homebrew operations only. It does not run a general Homebrew upgrade.
-- `just` and `jq` are installed if missing, and upgraded if already present.
-- Only Temurin is actively upgraded, via `brew upgrade --cask temurin` with `HOMEBREW_NO_AUTO_UPDATE=1`.
+- `just`, `jq` and the `temurin` cask are installed if missing, and upgraded if already present, with `HOMEBREW_NO_AUTO_UPDATE=1`.
+- Daily flows (`build-workspace`, `pull-workspace`, standalone `license-audit`) never upgrade machine software.
+- To skip a Homebrew version for a while (for example, a new JDK major that breaks the build), add a hold to `policy/version-holds.txt`: `brew temurin 27 2026-11-15 Gradle 9.8 fails on JDK 27`. The version is a prefix (`27` matches `27.0.1` and `27,35`). Until the date, upgrades to a matching version are skipped with a message. After it, the upgrade runs and the expired hold is reported so it can be removed. Malformed lines fail the run.
 - `just` is still a bootstrap prerequisite because you need it to run the workspace commands in the first place.
 
 ## Commands
@@ -107,6 +108,8 @@ Allowed steps:
 - `rebuild`
 - `publish`
 - `push`
+- `license-audit`
+- `license-audit-compact`
 - `cleanup`
 
 Rules:
@@ -139,6 +142,16 @@ Behavior:
 - both commands also fail on `UNKNOWN`
 - `update-workspace` automatically runs `license-audit-compact`
 - `build-workspace` and `pull-workspace` do not run license audit
+
+How the dependency list is produced, and when it is regenerated:
+
+- `scripts/cyclonedx-init.gradle` adds two tasks to each repo's build. `licenseDependencySnapshot` runs per project and writes `build/reports/license-audit/direct-dependency-snapshot.json`. `aggregateLicenseDependencySnapshot` runs on the root and merges those files into `build/reports/license-audit/dependency-snapshot.json`, which is what the audit reads. `cyclonedxDirectBom` / `cyclonedxBom` follow the same per-project → aggregate shape for `just generate-sbom`.
+- There are two layers of caching:
+  1. The audit tool (`tools/modules/license-audit`) hashes every `build.gradle(.kts)`, `settings.gradle(.kts)`, `gradle.properties`, `libs.versions.toml` and `container-versions.properties` in the repo, and only invokes Gradle when that hash changes.
+  2. Gradle's own up-to-date checks then skip snapshot tasks whose declared inputs did not change, so unchanged projects are not re-resolved.
+- Each aggregate task declares the per-project files it merges as inputs. Without that, a dependency added in a subproject re-runs that subproject's snapshot while the aggregate stays `UP-TO-DATE`, and the audit silently misses the new dependency.
+- Known gap: a per-project task's inputs are its own build files plus the root ones, not the build files of the projects it depends on. If module A depends on module B and B's dependencies change, A's snapshot can list stale versions. The audit uses the union of all snapshots, and B's own snapshot is regenerated, so this shows up as extra old versions rather than unchecked ones. If it ever matters, declare the resolved classpaths themselves as inputs (`inputs.files(configurations.runtimeClasspath, …)`).
+- `FORCE_LICENSE_AUDIT=1 just license-audit` bypasses layer 1. Layer 2 still applies; deleting the repo's `build/reports/license-audit/` bypasses both.
 
 ### Check Requirements
 
@@ -179,6 +192,6 @@ Current retention policy:
 
 - library-style repos keep the current version, the newest `5` version directories, and only delete older Maven-local versions once they are also older than `30` days
 - service/consumer repos keep the current version, the newest `2` version directories, and only delete older Maven-local versions once they are also older than `14` days
-- Docker images use a count-only policy and keep the newest `2` image ids by creation time for each configured image repository
+- Docker images use a count-only policy and keep the newest `2` image ids by tag time for each configured image repository
 
 In other words, Maven-local cleanup currently uses a mixed count-and-age rule, while Docker cleanup uses count only.
