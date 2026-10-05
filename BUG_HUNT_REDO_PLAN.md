@@ -372,5 +372,7 @@ Mechanical version bumps only — nothing to redo by hand.
 4. Parse the build logs (service tests included) and analyse warnings; fix the ones worth addressing.
 5. Inspect code readability after the changes and keep it really good (names, structure, consistency with the
    surrounding code) — fix anything the redo made worse.
-6. Compare the code with what the libraries and language offer (Kotlin, coroutines, http4k, Pulsar client, Avro,
+6. `just build-workspace` again (green), then commit.
+7. Report which versions `update-workspace` changed (dependencies, plugins, Gradle wrapper, container images).
+8. Compare the code with what the libraries and language offer (Kotlin, coroutines, http4k, Pulsar client, Avro,
    JUnit/AssertK, Gradle…) to spot newer patterns and possibilities we could use but aren't; present them.
