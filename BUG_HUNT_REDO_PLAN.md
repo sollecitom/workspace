@@ -214,6 +214,8 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 ### pillar
 
+**Agreed 2026-10-05:** 10.1 (per D2), 10.7, 10.11+10.14, 10.15, 10.16, 10.17, 10.18, 10.20, 10.21, 10.23, 10.24, 10.25, 10.27, 10.28, 10.29, 10.30, 10.31, 10.33, 10.34, GATEWAY.md with the four corrections; 10.8 dropped (replaced by D1).
+
 **Keep as is**
 - 10.24 (I3 C5) Three JSON serdes pointed at schema resources with a leading `/`, so their schemas never loaded.
 - 10.25 (I3 C5) `UnitJsonSerde` pointed at a schema that doesn't exist.
