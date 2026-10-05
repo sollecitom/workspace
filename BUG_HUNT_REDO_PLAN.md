@@ -118,6 +118,8 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 **Agreed 2026-10-05:** 9.14 option 1 (stdlib `toBigInteger().pow(n).longValueExact()` / `intValueExact()`, keep tests); 9.141 per D1.
 
+**Agreed 2026-10-05 (group 2):** 9.30, 9.31, 9.32, 9.36, 9.37, 9.42, 9.48, 9.49, 9.50, 9.60 (redo as is).
+
 **Agreed 2026-10-05:** 9.11 follow-up option 3 — rewrite the timed `Flow.chunk` variants with `channelFlow` (emissions from the collecting coroutine), with virtual-time tests.
 
 **Test rule for every redo:** tests at the right level (contract / example / unit), in the codebase's existing style; none for test factories; very fast (virtual time, no real delays).
