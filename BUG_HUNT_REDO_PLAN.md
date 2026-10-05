@@ -276,6 +276,8 @@ Mechanical version bumps only — nothing to redo by hand.
 
 ### modulith-example
 
+**Agreed 2026-10-05:** 11.4 (Stoppable on the interface), 11.5, 11.9, 11.12 (text), 11.13, 11.14 (no test), 11.15, 11.17, 11.20, 11.21 (recount after redo), 11.22.
+
 **Keep as is**
 - 11.9 (I3 C5) `OutboundPayment.inbound()` swapped source and target accounts.
 - 11.13 (I3 C5) The inbound-payment serde test built an outbound payment.
