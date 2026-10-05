@@ -89,6 +89,8 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 ### gradle-plugins
 
+**Agreed 2026-10-05:** 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7, 3.9, 3.11 (redo as is; tests + full `build-workspace` must pass).
+
 **Keep as is**
 - 3.1 (I4 C5) The minimum-dependency-version rule pinned the minimum exactly, silently downgrading newer versions in every repo; now only raises versions below the minimum.
 - 3.2 (I3 C5) Chained `.convention(...).convention(default)` dropped user Jib settings from the image fingerprint, so container tests/scans didn't rerun.
