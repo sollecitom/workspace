@@ -120,7 +120,7 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 **Agreed 2026-10-05 (group 2):** 9.30, 9.31, 9.32, 9.36, 9.37, 9.42, 9.48, 9.49, 9.50, 9.60 (redo as is).
 
-**Agreed 2026-10-05 (group 2, recommended options):** 9.41 delete the vacuous line; 9.43 make `id`/`subject`/`issuerId`/`issuedAt` nullable; 9.51 redo incl. removing `delay`; 9.52 for/break fix + fast unit test of the extracted retry loop; 9.54 README fix only, KDoc kept; 9.61 `getValue<Boolean>`; 9.58 drop; 9.64 drop.
+**Agreed 2026-10-05 (group 2, recommended options):** 9.41 rewrite the assertion to compare bytes (owner's choice: option 2); 9.43 make `id`/`subject`/`issuerId`/`issuedAt` nullable; 9.51 redo incl. removing `delay`; 9.52 for/break fix + fast unit test of the extracted retry loop; 9.54 README fix only, KDoc kept; 9.61 `getValue<Boolean>`; 9.58 drop; 9.64 drop.
 
 **Agreed 2026-10-05:** 9.11 follow-up option 3 — rewrite the timed `Flow.chunk` variants with `channelFlow` (emissions from the collecting coroutine), with virtual-time tests.
 
