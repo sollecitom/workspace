@@ -63,7 +63,7 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 ### Workspace root (scripts, docs, policy)
 
-**Agreed 2026-10-05:** 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8, 1.9, 1.11, 1.13, 1.14, 1.15 (redo as is).
+**Agreed 2026-10-05:** 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8, 1.9, 1.11, 1.13, 1.14, 1.15 (redo as is); 1.12 option 1 (delete the Dockerfile/runtime-image support everywhere, incl. CONTEXT and both `UpdateSummaryTask` copies).
 
 **Keep as is** (all agreed with you one by one, except 1.15)
 - 1.1 (I4 C4) Docker cleanup deleted every tag (literal `\t` in the inspect format) and ranked by a meaningless date; now ranks by tag time, real tab, refuses to delete when it can't tell what to keep, warns on failed `rm`.
