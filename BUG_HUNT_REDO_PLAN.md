@@ -345,3 +345,12 @@ Mechanical version bumps only — nothing to redo by hand.
   tree: (1) unions containing `null` list it first and their field has `"default": null`; (2) every enum contains
   `UNKNOWN` and declares it as default. Added to pillar's `AcmeAvroSchemaRules`, so every serde test enforces them;
   fast unit tests for the rules (decided 2026-10-05).
+
+## Part 6 — Sequence after the review (agreed 2026-10-05)
+
+1. Revert (option b) and redo every agreed item, with tests at the right level (fast).
+2. `just build-workspace` — fix everything until green, then commit.
+3. `just update-workspace` — fix everything until green, then commit.
+4. Parse the build logs (service tests included) and analyse warnings; fix the ones worth addressing.
+5. Compare the code with what the libraries and language offer (Kotlin, coroutines, http4k, Pulsar client, Avro,
+   JUnit/AssertK, Gradle…) to spot newer patterns and possibilities we could use but aren't; present them.
