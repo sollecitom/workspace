@@ -135,7 +135,7 @@ Core, kotlin-extensions, ddd, correlation, configuration, hashing, resource
 - [ ] 9.17 **M** Invalid toggle value from a header makes context logging throw — needs decision: real; reject at gateway, lenient EnumToggle, or tolerate in logLevel
 - [x] 9.18 **M** `Toggles.withToggle` doesn't replace an existing value — fixed: replaces existing value; test
 - [x] 9.19 **M** `ActorTestFactory` impersonation arguments swapped — fixed: arguments un-swapped; test
-- [ ] 9.20 **L** `customerOrNull`/`tenantOrNull` let a specified target override the actor (see 10.2) — needs decision: real; authorisation design
+- [x] 9.20 **L** `customerOrNull`/`tenantOrNull` let a specified target override the actor (see 10.2) — by design: the specified target is set by the gateway (decided 2026-10-05)
 - [ ] 9.21 **L** `Trace.isParent` means "is root" — needs decision: real; public rename
 - [ ] 9.22 **H** `configurationPropertiesUnderRoot` returns null values (Pulsar overrides dropped in both services) — needs decision: real but mis-described — http4k normalises keys (lowercase, `.`/`_`→`-`), so the result is an empty map and camelCase Pulsar names can't be recovered; needs an explicit key list or raw source
 - [x] 9.23 **H** Blake3 `invoke(bytes, offset, length)` ignores the range and writes at the input offset — fixed: hashes the requested range, writes output from 0; known-answer test
@@ -161,9 +161,9 @@ Cryptography, protected-value, jwt, keycloak, security scan
 - [x] 9.41 **L** Vacuous `ByteArray` vs `String` assertion in AES protected-value test — fixed: compares content against bytes
 - [x] 9.42 **L** Protected-value README says AES-CTR — fixed: README + CONTEXT say GCM
 - [x] 9.43 **M** `JoseJwtAdapter` NPEs on absent `iat`/`iss`/`jti`/`sub` — fixed: claims read lazily with clear errors; 2 tests
-- [ ] 9.44 **M** `newJKSJwtProcessor` takes no configuration (no `exp` required, no alg allow-list) — needs decision: real; JWT policy
-- [ ] 9.45 **L** JWT audience validation always skipped — needs decision: real; JWT policy
-- [ ] 9.46 **L** Audience processor doesn't require encryption — needs decision: real; JWT policy
+- [x] 9.44 **M** `newJKSJwtProcessor` takes no configuration (no `exp` required, no alg allow-list) — deferred: JWT validation policy belongs to the unfinished gateway; tracked in `pillar/modules/web/api/utils/GATEWAY.md`
+- [x] 9.45 **L** JWT audience validation always skipped — deferred: JWT validation policy belongs to the unfinished gateway; tracked in `pillar/modules/web/api/utils/GATEWAY.md`
+- [x] 9.46 **L** Audience processor doesn't require encryption — deferred: JWT validation policy belongs to the unfinished gateway; tracked in `pillar/modules/web/api/utils/GATEWAY.md`
 - [ ] 9.47 **L** `JWT.isValidAtTime` ignores `nbf` — needs decision: KDoc defines it as not-expired and pillar relies on that; add nbf (contract change), rename, or fix KDoc
 - [x] 9.48 **L** JWT tests are happy-path only — fixed: 4 negative tests (all pass)
 - [x] 9.49 **M** Keycloak `adminClient` ignores its `password` argument — fixed: passes `password`
@@ -210,7 +210,7 @@ OpenAPI, web, http4k, lens, readiness
 - [ ] 9.86 **L** `LocationBasedOpenApiProvider` re-parses on every access, leaks stream — stream closed; needs decision: caching would share one mutable OpenAPI object
 - [ ] 9.87 **L** `DowngradingOpenApiDefinitionReader` dead and broken — needs decision: real; delete vs fix
 - [ ] 9.88 **L** OpenAPI rules mostly untested; double-slash test URL — double-slash URL fixed; tests added for every changed rule; full per-rule coverage is coverage work
-- [ ] 9.89 **M** `CatchAndLogErrorsRequestFilter` logs full request (tokens, PII) at ERROR — needs decision: real — logs request line, all headers (Authorization, cookies, invocation context) and body at ERROR; logging policy
+- [x] 9.89 **M** `CatchAndLogErrorsRequestFilter` logs full request (tokens, PII) at ERROR — fixed (decided 2026-10-05): logs only method, path (no query) and the exception; test proves token, cookie, body and query values are absent (fails with the old logging)
 - [x] 9.90 **M** `OpenApiEndpoint` unsynchronised map keyed by client directives — fixed: map removed, replies with plain supported type
 - [ ] 9.91 **L** `PrometheusMetrics` echoes `*/*`; empty Accept → 500 — wildcard/empty Accept fixed (tests); unsupported specific types still echoed
 - [ ] 9.92 **L** `mainHttpApi` unused context parameters — needs decision: real; signature change
@@ -269,18 +269,18 @@ Messaging, Pulsar, NATS, Avro, JSON, logging, OpenTelemetry, test utils
 ## 10. pillar
 
 - [x] 10.1 **C** Gateway doesn't strip a client-sent invocation-context header; duplicate headers joined and the client's wins (forged identity) — fixed: client-sent context header removed before the gateway adds its own; parsing filter rejects duplicates (400) instead of joining; 4 tests
-- [ ] 10.2 **H** Gateway trusts target-customer/tenant, is-test and toggle headers from clients — needs decision: real
-- [ ] 10.3 **M** JWT audience never validated — needs decision: real
-- [ ] 10.4 **M** Issuer-by-domain always uses `""`; verified-JWT cache keyed by token only — needs decision: real (cache key verified; Jetty authority claim not re-verified)
-- [ ] 10.5 **M** Every user gets `Example.tenant`; every customer `isTest=false` — needs decision: real
-- [ ] 10.6 **L** All gateway failures become 400 with the raw exception message — needs decision: real
+- [x] 10.2 **H** Gateway trusts target-customer/tenant, is-test and toggle headers from clients — by design (decided 2026-10-05): the gateway sets target-customer/tenant/is-test/toggle headers, not end clients; the edge must not forward client-supplied copies
+- [x] 10.3 **M** JWT audience never validated — deferred: GatewayInvocationContextFilter is an unfinished stub (2026-10-05); tracked in `pillar/modules/web/api/utils/GATEWAY.md`
+- [x] 10.4 **M** Issuer-by-domain always uses `""`; verified-JWT cache keyed by token only — deferred: gateway filter is an unfinished stub; tracked in `pillar/modules/web/api/utils/GATEWAY.md`
+- [x] 10.5 **M** Every user gets `Example.tenant`; every customer `isTest=false` — deferred: gateway filter is an unfinished stub; tracked in `pillar/modules/web/api/utils/GATEWAY.md`
+- [x] 10.6 **L** All gateway failures become 400 with the raw exception message — deferred: gateway filter is an unfinished stub; tracked in `pillar/modules/web/api/utils/GATEWAY.md`
 - [x] 10.7 **L** Invocation-context header compared case-sensitively — fixed with 10.1: header name case-insensitive; test
 - [x] 10.8 **H** `MessagingEventProcessor` dies for good on the first exception — fixed: exceptions become Failure (log + nack), CancellationException rethrown; test
 - [ ] 10.9 **L** `MessagingEventProcessor` logs payloads at INFO — needs decision: real; log policy
-- [ ] 10.10 **M** `aud` as array rejected — needs decision: real; changes public `TargetApplication.audience: String`, overlaps 10.3
+- [x] 10.10 **M** `aud` as array rejected — deferred: JWT claim parsing for the unfinished gateway; tracked in `pillar/modules/web/api/utils/GATEWAY.md`
 - [x] 10.11 **L** `User.fullName` missing space; tests assert the wrong value — fixed: spaces between names; tests corrected to literals
-- [ ] 10.12 **L** Required JWT claims stricter than Keycloak emits — needs decision: real
-- [ ] 10.13 **L** Organisation from email domain wrong for subdomains/case — needs decision: real
+- [x] 10.12 **L** Required JWT claims stricter than Keycloak emits — deferred: JWT claim parsing for the unfinished gateway; tracked in `pillar/modules/web/api/utils/GATEWAY.md`
+- [x] 10.13 **L** Organisation from email domain wrong for subdomains/case — deferred: JWT claim parsing for the unfinished gateway; tracked in `pillar/modules/web/api/utils/GATEWAY.md`
 - [x] 10.14 **L** `otherNames` gets the whole name when `given_name` isn't a prefix — fixed: otherNames only when name = given + … + family; 4 tests
 - [x] 10.15 **L** Acme `locale` falls back to `Example.defaultLocale` — fixed: Acme.defaultLocale (both UK, no behaviour change)
 - [x] 10.16 **L** Cookie rule tests use `ParameterLocation.path` — fixed: cookie location
@@ -311,7 +311,7 @@ Messaging, Pulsar, NATS, Avro, JSON, logging, OpenTelemetry, test utils
 - [x] 11.4 **L** Stub subscriber scope never cancelled; deferred never completed on failure — fixed: failure fails the Deferred; scope cancelled on module stop; test
 - [x] 11.5 **L** `$arguments` logged before declaration (send-payment and deposit endpoints) — fixed: arguments parsed before logging (both endpoints)
 - [ ] 11.6 **L** Payment module test asserts status only — needs decision: real; right expectation depends on 11.1
-- [ ] 11.7 **H** Deposit endpoint: any authenticated actor; client-supplied event metadata published as-is — needs decision: real; trust/authorisation
+- [x] 11.7 **H** Deposit endpoint: any authenticated actor; client-supplied event metadata published as-is — by design: event endpoint with a trusted client (decided 2026-10-05)
 - [ ] 11.8 **H** account-event-processor handlers all TODO (unwired); README says Done — needs decision: real; README section left as is
 - [x] 11.9 **H** `OutboundPayment.inbound()` swaps the accounts (no callers yet) — fixed: accounts un-swapped; literal test
 - [ ] 11.10 **M** No positive-amount check on payments/deposits — needs decision: real; domain rule
@@ -393,7 +393,7 @@ compliance-plan-outputs-manager
 - [x] 12.58 **L** Module spec connectors never stopped — fixed: stopped/closed in finally
 
 http-event-bridge
-- [ ] 12.59 **H** Client-supplied event metadata (identity, id, timestamp) published as-is — needs decision: real; trust design
+- [x] 12.59 **H** Client-supplied event metadata (identity, id, timestamp) published as-is — by design (decided 2026-10-05): event endpoints ingest events from trusted clients (e.g. Stripe), so body metadata is trusted
 - [ ] 12.60 **H** Ingestion only checks "authenticated" (no role/customer check) — needs decision: real; authorisation
 - [x] 12.61 **M** Shutdown stops the connector before the processor — fixed: processor → connector → publisher
 - [x] 12.62 **M** Cancellation becomes a failure (see 9.141) — fixed upstream in swissknife (9.141)
@@ -406,19 +406,19 @@ http-event-bridge
 - [x] 12.69 **M** `Publication.edition` nullable but required in serde/schema — fixed: nullable edition (serde + schema); test
 - [x] 12.70 **M** `RequirementStandard.edition` same — fixed: nullable edition (serde + schema); test
 - [ ] 12.71 **M** Round-trip tests can't detect dropped optional fields (see 12.17) — needs decision: see 12.17
-- [ ] 12.72 **M** Body not schema-validated; no size limit (gzip bomb) — needs decision: real; validation/size-limit policy
+- [ ] 12.72 **M** Body not schema-validated; no size limit (gzip bomb) — proposed close: body size limits are the gateway's job (awaiting confirmation)
 - [ ] 12.73 **L** Contract tests happy path only — needs decision: an Error contract case would lock in 12.64
 - [x] 12.74 **L** Module spec `first {}` without timeout; consumers not closed — fixed: client closed per test (closes consumers); the no-timeout half was not a bug (10s withTimeout already)
 
 compliance-plans-viewer
 - [x] 12.75 **C** SQL injection via continuation token / customer id / states — fixed: customer/states/token bound (`= ANY(:STATES)`, token parsed to Long, non-numeric rejected before SQL → generic 500); 2 Testcontainers tests
-- [ ] 12.76 **H** Tenant taken from a client header (see 10.2) — needs decision: depends on 10.2
+- [x] 12.76 **H** Tenant taken from a client header (see 10.2) — by design: services trust the gateway-set context (decided 2026-10-05)
 - [ ] 12.77 **H** Upsert overwrites newer state (redelivery regresses plans) — needs decision: real; ordering guard design
-- [ ] 12.78 **H** In-memory sort after `LIMIT` duplicates rows across pages — needs decision: real; keyset/sort redesign changes the token format
+- [x] 12.78 **H** In-memory sort after `LIMIT` duplicates rows across pages — fixed (decided 2026-10-05): sorting and keyset pagination in SQL on `(state_order, pk)`; new `state_order` column (migration 1_6, backfilled) with `(customer_id, state_order, pk)` and `(customer_id, pk)` indexes; continuation token is `stateOrder:pk`; test pages through mixed states in both directions and unsorted (fails on the old code)
 - [ ] 12.79 **M** `limit` not validated — needs decision: real; limit bounds
 - [x] 12.80 **M** Empty `selected-states` → `IN ()` SQL error — fixed by the ANY binding: empty selection → empty page; test
 - [x] 12.81 **M** Upsert never updates device fields — fixed: upsert updates device fields; test
-- [ ] 12.82 **L** Extra empty page; count/page from different queries — needs decision: real
+- [x] 12.82 **L** Extra empty page; count/page from different queries — fixed with 12.78: fetches limit+1 to decide whether there is a next page (no trailing empty page)
 - [ ] 12.83 **L** Null customer becomes `'null'` — null customer now binds SQL NULL (no `'null'` literal); needs decision: reject with 403 instead of empty 200
 - [x] 12.84 **L** `upsertAll(emptyList())` throws — fixed: early return; test
 - [x] 12.85 **L** `DocumentModule` writes the wrong format fields — fixed: format fields and error message; test
@@ -431,4 +431,4 @@ compliance-plans-viewer
 - [x] 12.92 **M** Event processing tests exercise a stub — fixed: real Application with recording writer
 - [x] 12.93 **M** Viewer application tests filter inside the stub — fixed: stub returns page as-is, records arguments
 - [x] 12.94 **L** Contract stub ignores arguments — fixed: stub captures arguments, test asserts them
-- [ ] 12.95 **L** Sorted pagination test doesn't check pages are disjoint — needs decision: would fail until 12.78 is decided
+- [x] 12.95 **L** Sorted pagination test doesn't check pages are disjoint — fixed with 12.78: the new paging test asserts every plan appears exactly once, in order
