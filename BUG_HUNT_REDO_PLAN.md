@@ -104,7 +104,7 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 ### acme-schema-catalogue
 
-**Agreed 2026-10-05:** 4.13 (redo as is).
+**Agreed 2026-10-05:** 4.13 (redo as is); 4.3 option 2 (keep `"default": null` on all 30 nullable fields — readiness for future evolution).
 
 **Keep as is**
 - 4.13 (I2 C5) README/IMPROVEMENTS facts (title, Java version, recipes, counts).
