@@ -245,6 +245,8 @@ Mechanical version bumps only — nothing to redo by hand.
 
 ### tools
 
+**Agreed 2026-10-05:** 5.1, 5.4 (+ new open item for the directory phase), 5.10 (imports, not qualified names); 5.6/5.7/5.8 production fixes with JUnit tests — option 3: introduce JUnit/AssertK in license-audit, migrate the existing self-checks to JUnit, delete `selfCheck`.
+
 **Keep as is**
 - 5.1 (I4 C5) package-migrator matched the package path anywhere in the absolute path, so it could move files outside the project.
 - 5.4 (I4 C5) package-migrator mutated the tree while walking it (endless recursion); the finding's own example still fails afterwards, so a new open item is added.
