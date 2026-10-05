@@ -116,7 +116,9 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 **Agreed 2026-10-05 (group 1):** 9.1, 9.3, 9.5, 9.8, 9.9, 9.11, 9.12, 9.13, 9.16, 9.18, 9.19, 9.23, 9.24, 9.25, 9.26, 9.28 (redo as is; no tests for test factories, so 9.9 and 9.19 get none).
 
-**Test rule for every redo:** tests at the right level (contract / example / unit), in the codebase's existing style; none for test factories.
+**Agreed 2026-10-05:** 9.11 follow-up option 3 — rewrite the timed `Flow.chunk` variants with `channelFlow` (emissions from the collecting coroutine), with virtual-time tests.
+
+**Test rule for every redo:** tests at the right level (contract / example / unit), in the codebase's existing style; none for test factories; very fast (virtual time, no real delays).
 
 **Keep as is**
 - 9.30 (I4 C5) `AESKeyAdapter.toString()` printed the raw AES key; now prints algorithm, format and hash only.
@@ -324,3 +326,7 @@ Mechanical version bumps only — nothing to redo by hand.
 - package-migrator: after 5.4, migrating `a.b` → `a.b.v2` still fails in the directory phase (moves a directory into itself).
 - 12.77 reframed: with your processing model, consumer-side reordering disappears; older events can still arrive late via client retries (no idempotency) or rare lost acks — whether plan states are monotonic is your call later.
 - Proposed fixes for 9.115 (ack-and-skip or nack a message without a type) and 9.117 (nack skipped messages) conflict with your processing model and won't be applied.
+
+## Part 5 — New work agreed during review (after the redo)
+
+- Avro: no compatibility check in the catalogue build — the transport (Pulsar/Kafka schema registry) does it (decided 2026-10-05).
