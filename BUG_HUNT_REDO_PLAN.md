@@ -330,3 +330,10 @@ Mechanical version bumps only — nothing to redo by hand.
 ## Part 5 — New work agreed during review (after the redo)
 
 - Avro: no compatibility check in the catalogue build — the transport (Pulsar/Kafka schema registry) does it (decided 2026-10-05).
+- Avro enums: every enum gets an `UNKNOWN` symbol as its `default` (all 13, incl. `IdType`/`TimestampFormat`); each
+  serde maps `UNKNOWN` explicitly — to a domain value where one makes sense, otherwise a clear deserialisation error
+  (which, under D1, retries loudly until the consumer is upgraded) (decided 2026-10-05).
+- Avro lint rules, as generic `ComplianceRule<Schema>`s in swissknife's avro schema checker, walking the whole schema
+  tree: (1) unions containing `null` list it first and their field has `"default": null`; (2) every enum contains
+  `UNKNOWN` and declares it as default. Added to pillar's `AcmeAvroSchemaRules`, so every serde test enforces them;
+  fast unit tests for the rules (decided 2026-10-05).
