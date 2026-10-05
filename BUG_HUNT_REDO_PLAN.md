@@ -84,6 +84,8 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 ### aggregator
 
+**Decided 2026-10-06:** delete the aggregator repo (local-only, no remote) during execution, instead of 2.1. Remove its `.gitignore` entry and its CONTEXT.md mention. Its contents survive only in `analysis/redo/patches/aggregator.patch`.
+
 **Keep, modified**
 - 2.1 (I2 C4) Remove the nonexistent `../backend-skeleton` and add `quality-scorer` in `settings.gradle.kts`/README/CONTEXT — applied to your untracked files only; committing them stays your call.
 
