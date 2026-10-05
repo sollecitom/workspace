@@ -114,6 +114,10 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 ### swissknife
 
+**Agreed 2026-10-05 (group 1):** 9.1, 9.3, 9.5, 9.8, 9.9, 9.11, 9.12, 9.13, 9.16, 9.18, 9.19, 9.23, 9.24, 9.25, 9.26, 9.28 (redo as is; no tests for test factories, so 9.9 and 9.19 get none).
+
+**Test rule for every redo:** tests at the right level (contract / example / unit), in the codebase's existing style; none for test factories.
+
 **Keep as is**
 - 9.30 (I4 C5) `AESKeyAdapter.toString()` printed the raw AES key; now prints algorithm, format and hash only.
 - 9.132 (I4 C5) The SLF4J adapter dropped the exception in `log("msg {}", arg, ex)`; stack traces now logged.
