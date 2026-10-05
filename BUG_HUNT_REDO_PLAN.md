@@ -104,6 +104,8 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 ### acme-schema-catalogue
 
+**Agreed 2026-10-05:** 4.13 (redo as is).
+
 **Keep as is**
 - 4.13 (I2 C5) README/IMPROVEMENTS facts (title, Java version, recipes, counts).
 
