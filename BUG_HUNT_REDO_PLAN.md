@@ -122,6 +122,8 @@ http4k 6.61 on JettyLoom a raw JSON header currently arrives as one entry, so th
 
 **Agreed 2026-10-05 (group 2, recommended options):** 9.41 rewrite the assertion to compare bytes (owner's choice: option 2); 9.43 make `id`/`subject`/`issuerId`/`issuedAt` nullable; 9.51 redo incl. removing `delay`; 9.52 for/break fix + fast unit test of the extracted retry loop; 9.54 README fix only, KDoc kept; 9.61 `getValue<Boolean>`; 9.58 drop; 9.64 drop.
 
+**Agreed 2026-10-05 (group 3):** 9.65, 9.66, 9.68, 9.70, 9.71, 9.72, 9.73, 9.74, 9.75 (typed `Response.InvalidJson`), 9.76, 9.78, 9.79, 9.80, 9.83, 9.84, 9.86, 9.88, 9.89, 9.90, 9.94 (keep: clear error, library rule), 9.96, 9.97, 9.98, 9.99, 9.100; plus 9.69 (add scalar validation to the JSON-schema utility and use it in the examples rule); 9.91 replaced by Prometheus content negotiation (pass the raw Accept header to `scrape`, respond with `ExpositionFormats.findWriter(accept).contentType`; resolves the owner's two TODOs). 9.67 not a bug.
+
 **Agreed 2026-10-05:** 9.11 follow-up option 3 — rewrite the timed `Flow.chunk` variants with `channelFlow` (emissions from the collecting coroutine), with virtual-time tests.
 
 **Test rule for every redo:** tests at the right level (contract / example / unit), in the codebase's existing style; none for test factories; very fast (virtual time, no real delays).
