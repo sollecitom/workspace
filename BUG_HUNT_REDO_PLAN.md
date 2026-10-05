@@ -296,6 +296,8 @@ Mechanical version bumps only — nothing to redo by hand.
 
 ### element-service-example
 
+**Agreed 2026-10-06:** every item listed below as keep/keep-modified (incl. 12.78/12.82/12.95 with the in-group page boundary and `Long` limit, 12.92/12.52 asserting exception propagation per D1); 12.85 option 1 (fix `DocumentModule` with a round-trip test); 12.51/12.62/12.88 dropped (covered by D1).
+
 **Keep as is**
 - 12.1 (I5 C5) The migrator's `-XX:+ZGenerational` is fatal on JDK 26, so no pod could start.
 - 12.2 (I5 C4) The Helm template `{ { … } }` rendered a map, so `helm install` failed.
@@ -355,6 +357,8 @@ Mechanical version bumps only — nothing to redo by hand.
   tree: (1) unions containing `null` list it first and their field has `"default": null`; (2) every enum contains
   `UNKNOWN` and declares it as default. Added to pillar's `AcmeAvroSchemaRules`, so every serde test enforces them;
   fast unit tests for the rules (decided 2026-10-05).
+
+- JVM flags: review every JVM flag set for services, migrator and Jib defaults (gradle-plugins convention, element/modulith starters, migrator) and optimise them for JDK 25/26 containers (decided 2026-10-06).
 
 ## Part 6 — Sequence after the review (agreed 2026-10-05)
 
