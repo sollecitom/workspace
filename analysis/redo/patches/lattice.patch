@@ -1,0 +1,111 @@
+diff --git a/gradle.properties b/gradle.properties
+index bc275f6..d7ed998 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -1,4 +1,4 @@
+-currentVersion=1.0.8
++currentVersion=1.0.10
+ projectGroup=sollecitom.lattice
+ versionCatalogName=libs
+ org.gradle.jvmargs=-Xmx4g -XX:+UseZGC -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Djava.net.preferIPv4Stack=true -Dkotlin.daemon.jvm.options=-XX:MaxMetaspaceSize=1g,-Xmx3g,-Djava.net.preferIPv4Stack=true
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index ec5c5a5..bc57286 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -6,8 +6,8 @@ junit-jupiter = "6.1.3"
+ assertk = "0.28.1"
+ kotlinx-datetime = "0.8.0"
+ # plugins
+-sollecitom-gradle-plugins = "1.0.32"
+-sollecitom-swissknife = "1.0.35"
++sollecitom-gradle-plugins = "1.0.33"
++sollecitom-swissknife = "1.0.37"
+ palantir-git-plugin = "5.1.0"
+ 
+ [libraries]
+diff --git a/publication-state.properties b/publication-state.properties
+index d7f5565..cb90ea4 100644
+--- a/publication-state.properties
++++ b/publication-state.properties
+@@ -1,15 +1,15 @@
+-publishedVersion=1.0.8
++publishedVersion=1.0.10
+ artifactCount=30
+ artifact.1.identity=sollecitom.lattice:company-domain:javadoc@jar
+ artifact.1.sha256=c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3
+ artifact.2.identity=sollecitom.lattice:company-domain:sources@jar
+-artifact.2.sha256=48c4ce99e5c1a66e8689690ae0d69651578ade62f995da39172bed4701fab6d9
++artifact.2.sha256=c320062511cd470b196db96f0551434b715d14aead67ce2dcf54b19e9cdb4ee7
+ artifact.3.identity=sollecitom.lattice:company-domain@jar
+-artifact.3.sha256=0d3af72da02a8d47d38324de18abea161e68a0ce9d7745c5c039aa6b532c628d
++artifact.3.sha256=a9cc50ee8cae48678f9ced7e36ccf8c691885f88ac3c190b6477db920acb88dd
+ artifact.4.identity=sollecitom.lattice:company-domain@module
+-artifact.4.sha256=53d6eea78475fc849f63c6d8c87d49273c7faeeafdd01540d9e16b7bd94cbcba
++artifact.4.sha256=74579a8f6d93210705b3aa9bee0d4eed139a6125146331bac88f8c78b7997468
+ artifact.5.identity=sollecitom.lattice:company-domain@pom
+-artifact.5.sha256=bb1be7d8478567743ec703141c4110c5f965e389f3abe3e7b77f6f4201d78346
++artifact.5.sha256=a7ae56fcabd6d167ccdceb6bf7ebf2821d487cde2061d91a2b86048856a4df28
+ artifact.6.identity=sollecitom.lattice:company-sdk:javadoc@jar
+ artifact.6.sha256=c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3
+ artifact.7.identity=sollecitom.lattice:company-sdk:sources@jar
+@@ -17,9 +17,9 @@ artifact.7.sha256=f8153796ad58b1a73aae1767254e2a34a3ee0a130d575cb49bff961c53cf6f
+ artifact.8.identity=sollecitom.lattice:company-sdk@jar
+ artifact.8.sha256=443166e85f5b577fd4e489aec53505209dbd372b2de1a54a9c263b844bb97c4c
+ artifact.9.identity=sollecitom.lattice:company-sdk@module
+-artifact.9.sha256=6795cfc97bfc879b4ab1350d1b53deab08c753fef0b90ac6f14d1f02b83d5d07
++artifact.9.sha256=2dec350c5569c649e871a59517cbe08409e482a960003eee217d6a05bdaf2834
+ artifact.10.identity=sollecitom.lattice:company-sdk@pom
+-artifact.10.sha256=e36f57f9ac03a3e946062477217715581a40a9a56aba107773d928ebf97e7813
++artifact.10.sha256=22ebaa55b3c58c1cede8cefe4fa18009c29be33da5dcb7546ef0a362bfcbf09b
+ artifact.11.identity=sollecitom.lattice:company-test-utils:javadoc@jar
+ artifact.11.sha256=c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3
+ artifact.12.identity=sollecitom.lattice:company-test-utils:sources@jar
+@@ -27,29 +27,29 @@ artifact.12.sha256=0951361e5073ed0ec6660805c9da2d8c5d4da76c3ea1fe636a87021adcf27
+ artifact.13.identity=sollecitom.lattice:company-test-utils@jar
+ artifact.13.sha256=49288aa95d58bdc9e59d0a8ee94ddd5c909c457a589da01c8ed1fbfab2667893
+ artifact.14.identity=sollecitom.lattice:company-test-utils@module
+-artifact.14.sha256=27dd14bf6130f5ad8cec33180bbb340eb9e6581a0cc2d17e980163100559b506
++artifact.14.sha256=8e0f5d6b788a28cfda18cacc78fcc9e35321af14e11d1f19b3fd539357a7a86f
+ artifact.15.identity=sollecitom.lattice:company-test-utils@pom
+-artifact.15.sha256=6aa77f632c382e0b40c9b655fdae2ffbb71d3b32f53066765ec45ce4b9069c40
++artifact.15.sha256=20606269ea7bc4eed5dd893f28dd10ca5db44bc83c73dcebade6d1b3e87fd14d
+ artifact.16.identity=sollecitom.lattice:framework-core:javadoc@jar
+ artifact.16.sha256=c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3
+ artifact.17.identity=sollecitom.lattice:framework-core:sources@jar
+-artifact.17.sha256=6611038912bb8673517cdab5f3c7fe619ed10354348fb732e4f32eab03910e99
++artifact.17.sha256=622dd09dd2563c9cbc77e07fe0bd1d92f8ae5cc3428c6b35a2adeb96205dd733
+ artifact.18.identity=sollecitom.lattice:framework-core@jar
+-artifact.18.sha256=f32940c251160c231cb075f9c5e63affc33560caaa89461d38e2f39c48888f28
++artifact.18.sha256=41cb82a324a44a88613859d11c371b76850f09c013a9b58637c669f3920b643a
+ artifact.19.identity=sollecitom.lattice:framework-core@module
+-artifact.19.sha256=bef176c0fb7d52aaad3520324a34489a73d408956b1ecc5a00c2a1825081c803
++artifact.19.sha256=36acda186f98f0bfcf10af6afe7150ab28124b73e4ed6f2d6752ea0b88fe7808
+ artifact.20.identity=sollecitom.lattice:framework-core@pom
+-artifact.20.sha256=c3c0cb9795a9c2c2884e3aede4f29bce350b927d4cc41451f1c0402fd8640f78
++artifact.20.sha256=ca79950c9dfe66aa4cee8799ca0843c85ec038746ce27922d8c1a3db8ff249cb
+ artifact.21.identity=sollecitom.lattice:framework-in-memory:javadoc@jar
+ artifact.21.sha256=c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3
+ artifact.22.identity=sollecitom.lattice:framework-in-memory:sources@jar
+-artifact.22.sha256=adaa8eb83da3df8832ebd7f6a5f47bb24dc1acc6133ec79c7c4a0bfa97ceb3c7
++artifact.22.sha256=8d0e4dc79cabd1dde62619fe2e632faf203cd9daff22d9f30dc4e5e4b7ea2560
+ artifact.23.identity=sollecitom.lattice:framework-in-memory@jar
+-artifact.23.sha256=5505c5abe9057fb7b928ef4af6d737d32fdb14ab40da55342f1f73f06a144143
++artifact.23.sha256=c5a5ddd9c70053381c2c666a015db4ebf323ef5df5eead25bb34a09a82879457
+ artifact.24.identity=sollecitom.lattice:framework-in-memory@module
+-artifact.24.sha256=64dd635558dbaa515c2526d58064ec3f178d40364f2b8ffac253e2f6b817ff87
++artifact.24.sha256=fe3c92446e3af0d508026816f7223a10322bbc5e9f70ca1141fd49e38e8f8f5b
+ artifact.25.identity=sollecitom.lattice:framework-in-memory@pom
+-artifact.25.sha256=197974fc875cb2894e5f0b4b50ae8e3f6f5bf1c8bc06710d8576cace1cc8b188
++artifact.25.sha256=62d88ae7afbf136b79bea99b4181108dcafe13298f7dcba143d319ca9f0bda82
+ artifact.26.identity=sollecitom.lattice:framework-test-utils:javadoc@jar
+ artifact.26.sha256=c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3
+ artifact.27.identity=sollecitom.lattice:framework-test-utils:sources@jar
+@@ -57,6 +57,6 @@ artifact.27.sha256=970dee1a9c459a04cb1771385c27a7c627eb9d36f2815c8900264bdc0cb38
+ artifact.28.identity=sollecitom.lattice:framework-test-utils@jar
+ artifact.28.sha256=cb81e597447a3e7b9e71a6108386dc2cb389e91296410c023b1ced9c5562ac4a
+ artifact.29.identity=sollecitom.lattice:framework-test-utils@module
+-artifact.29.sha256=2360f468fd1bed881d30ed5bb51fe7d869e73847b66d643e16b3f6a76b5ff3c4
++artifact.29.sha256=0ad8c02cc2d4abc446443ef3a2b8c885836e655d2ec73c9440b8cd8eaede015e
+ artifact.30.identity=sollecitom.lattice:framework-test-utils@pom
+-artifact.30.sha256=29f3a918b03fe78d055f2f3b418d0727220ee4fa8aa5ea52ac786b7bf2b61b36
++artifact.30.sha256=f25f35deda942a7e0db0dac4ae5d2fc9630580210729c3f579a61782b3488fd4

@@ -1,0 +1,140 @@
+diff --git a/.gitignore b/.gitignore
+index a2d75b2..2ec31ab 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,5 +37,6 @@ workspace.xml
+ 
+ *.tgz
+ Chart.lock
+-*.pidjava_pid*.hprof
++*.pid
++java_pid*.hprof
+ .nwave
+diff --git a/IMPROVEMENTS.md b/IMPROVEMENTS.md
+index 5588f87..aa16a69 100644
+--- a/IMPROVEMENTS.md
++++ b/IMPROVEMENTS.md
+@@ -7,7 +7,7 @@ Lightweight playground for testing and demonstrating technologies before spinnin
+ 
+ | Dimension | Rating | Notes |
+ |-----------|--------|-------|
+-| Build system | A | Gradle 9.4.0, consistent conventions |
++| Build system | A | Gradle 9.8.0, consistent conventions |
+ | Code quality | B | Exploratory but well-structured |
+ | Test coverage | A- | 23 test files, project is primarily test-driven |
+ | Documentation | B+ | Clear README with build instructions |
+@@ -20,13 +20,9 @@ Lightweight playground for testing and demonstrating technologies before spinnin
+ - Primarily test files (23 test files, 0 production files) — test-first exploration
+ 
+ ## Issues
+-- SNAPSHOT dependencies for all internal libraries
+-- Configuration cache disabled
+ - Only 2 modules — could demonstrate more patterns
+-- No integration tests showing Pulsar end-to-end
+ 
+ ## Potential Improvements
+ 1. Add more example modules showcasing different architectural patterns
+-2. Add Pulsar integration tests (with Testcontainers)
+-3. Document the event framework pattern with architecture diagrams
+-4. Consider using this as a living cookbook/reference
++2. Document the event framework pattern with architecture diagrams
++3. Consider using this as a living cookbook/reference
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index cdb2c38..3b54fba 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -1,9 +1,9 @@
+ [versions]
+ # libraries
+ kotlin = "2.4.20"
+-sollecitom-gradle-plugins = "1.0.32"
+-sollecitom-swissknife = "1.0.35"
+-sollecitom-pillar = "1.0.17"
++sollecitom-gradle-plugins = "1.0.33"
++sollecitom-swissknife = "1.0.37"
++sollecitom-pillar = "1.0.19"
+ # plugins
+ palantir-git-plugin = "5.1.0"
+ 
+diff --git a/modules/exercises/event-framework/src/test/kotlin/sollecitom/examples/exercises/event_framework/EventFrameworkExampleTests.kt b/modules/exercises/event-framework/src/test/kotlin/sollecitom/examples/exercises/event_framework/EventFrameworkExampleTests.kt
+index 0782056..2ab0e56 100644
+--- a/modules/exercises/event-framework/src/test/kotlin/sollecitom/examples/exercises/event_framework/EventFrameworkExampleTests.kt
++++ b/modules/exercises/event-framework/src/test/kotlin/sollecitom/examples/exercises/event_framework/EventFrameworkExampleTests.kt
+@@ -85,7 +85,7 @@ class InMemoryEventFramework : EventFramework {
+         override fun <EVENT : Event> withId(id: String, eventClass: KClass<EVENT>): EventStream<EVENT> {
+ 
+             val stream = streamsMap.getOrPut(id) { Stream(id, eventClass) } as Stream<EVENT>
+-            if (stream.eventClass !== eventClass) {
++            if (stream.eventClass != eventClass) {
+                 throw IllegalArgumentException("Stream with ID '$id' already exist, but its eventClass '${stream.eventClass}' is different from the one requested '$eventClass'")
+             }
+             return stream
+diff --git a/modules/exercises/event-framework/src/test/kotlin/sollecitom/examples/exercises/rpg/RolePlayingGamesTests.kt b/modules/exercises/event-framework/src/test/kotlin/sollecitom/examples/exercises/rpg/RolePlayingGamesTests.kt
+index 2b7649f..b446813 100644
+--- a/modules/exercises/event-framework/src/test/kotlin/sollecitom/examples/exercises/rpg/RolePlayingGamesTests.kt
++++ b/modules/exercises/event-framework/src/test/kotlin/sollecitom/examples/exercises/rpg/RolePlayingGamesTests.kt
+@@ -46,6 +46,18 @@ private class RolePlayingGamesTests : CoreDataGenerator by CoreDataGenerator.tes
+             assertThat(outcome).failed()
+         }
+ 
++        @Test
++        fun `a weak player fails to knock a door down`() = testWithGame(DungeonsAndDragons) {
++
++            val challenge = newKnockDoorDownChallenge(difficultyClass = 13)
++            val player = newPlayer(strength = 9)
++
++            val dice = loadedD20(result = 13)
++            val outcome = player.attempt(challenge, dice)
++
++            assertThat(outcome).failed()
++        }
++
+         @Test
+         fun `a player critically succeeds in knocking a door down`() = testWithGame(DungeonsAndDragons) {
+ 
+@@ -220,7 +232,7 @@ class DungeonsAndDragonsPlayerImplementation(
+         else -> 0
+     }
+ 
+-    private fun Int.modifier(): Int = (this - 10) / 2
++    private fun Int.modifier(): Int = (this - 10).floorDiv(2)
+ }
+ 
+ object DungeonsAndDragons {
+diff --git a/modules/pulsar/messaging/src/test/kotlin/sollecitom/examples/pulsar/messaging/transaction/Transaction.kt b/modules/pulsar/messaging/src/test/kotlin/sollecitom/examples/pulsar/messaging/transaction/Transaction.kt
+index 210b1f0..307d118 100644
+--- a/modules/pulsar/messaging/src/test/kotlin/sollecitom/examples/pulsar/messaging/transaction/Transaction.kt
++++ b/modules/pulsar/messaging/src/test/kotlin/sollecitom/examples/pulsar/messaging/transaction/Transaction.kt
+@@ -42,11 +42,17 @@ sealed class Transaction(val id: Id, val amount: Double, val tag: String) {
+         if (this === other) return true
+         if (javaClass != other?.javaClass) return false
+         other as Transaction
+-        return id == other.id
++        return fields == other.fields
+     }
+ 
+     final override fun hashCode() = id.hashCode()
+ 
++    private val fields: List<Any>
++        get() = when (this) {
++            is CardTransaction -> listOf(id, amount, tag, cardNumber)
++            is TradeTransaction -> listOf(id, amount, tag, quantity, assetId, pricePerShare)
++        }
++
+     override fun toString() = "Transaction(amount=$amount, tag=$tag, id=$id)"
+ 
+     companion object
+diff --git a/scripts/update-gradle.sh b/scripts/update-gradle.sh
+index 88fee42..793bea4 100755
+--- a/scripts/update-gradle.sh
++++ b/scripts/update-gradle.sh
+@@ -20,7 +20,8 @@ updated_checksum=$(curl -fsSL "${updated_url}.sha256")
+     --no-validate-url
+ 
+ if grep -q '^validateDistributionUrl=' "$props_file"; then
+-    sed -i '' 's/validateDistributionUrl=.*/validateDistributionUrl=true/' "$props_file"
++    sed -i.bak 's/validateDistributionUrl=.*/validateDistributionUrl=true/' "$props_file"
++    rm "${props_file}.bak"
+ else
+     printf '\nvalidateDistributionUrl=true\n' >> "$props_file"
+ fi

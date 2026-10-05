@@ -1,0 +1,391 @@
+diff --git a/.gitignore b/.gitignore
+index a2d75b2..2ec31ab 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,5 +37,6 @@ workspace.xml
+ 
+ *.tgz
+ Chart.lock
+-*.pidjava_pid*.hprof
++*.pid
++java_pid*.hprof
+ .nwave
+diff --git a/.trivyignore b/.trivyignore
+index 0a907bd..7f6aca1 100644
+--- a/.trivyignore
++++ b/.trivyignore
+@@ -2,11 +2,5 @@
+ # Format: one CVE ID per line; "#" starts a comment; an inline "# reason" is shown in the warning.
+ # Re-check on every base-image rebuild and remove the entry once the CVE is no longer reported.
+ 
+-# Added 2026-10-01. Ubuntu fixed this in openssl 3.0.13-0ubuntu3.16, but no eclipse-temurin tag has rebuilt
+-# against it yet (26-jre-noble, 26-noble, 25-jre-noble and 26-jre all still ship a vulnerable openssl), so there
+-# is no patched base image to move to. Not exploitable here: the service speaks TLS through the JVM's own JSSE
+-# stack — netty-tcnative is absent from the runtime classpath, so nothing links against the OS libssl — and no
+-# component speaks DTLS, which is the affected protocol.
+-CVE-2026-84782 # DTLS-only openssl info disclosure; JVM uses JSSE, not OS libssl. Drop when the noble base rebuilds.
+-
+-# Previously accepted: CVE-2026-45447 removed 2026-07-02 after the noble base rebuilt with patched openssl
++# (none currently — CVE-2026-84782 removed 2026-10-03, and CVE-2026-45447 on 2026-07-02, both after the noble
++# base rebuilt with patched openssl)
+diff --git a/IMPROVEMENTS.md b/IMPROVEMENTS.md
+index 04a7418..dc4a61d 100644
+--- a/IMPROVEMENTS.md
++++ b/IMPROVEMENTS.md
+@@ -7,22 +7,21 @@ Modular monolith template demonstrating event-driven architecture with a simplif
+ 
+ | Dimension | Rating | Notes |
+ |-----------|--------|-------|
+-| Build system | A | Gradle 9.4.0, 88+ dependency refs, excellent |
++| Build system | A | Gradle 9.8.0, 88+ dependency refs, excellent |
+ | Code quality | A | Strong DDD, clean architecture, hexagonal adapters |
+-| Test coverage | B+ | 26 test files across 31 modules, contract + integration tests |
++| Test coverage | B+ | 29 test files across 47 modules, contract + integration tests |
+ | Documentation | A- | Comprehensive README with scenario, module types, completion status |
+ | Dependency freshness | A | All current |
+-| Modularity | A+ | 31 modules, exemplary layer separation per module |
++| Modularity | A+ | 47 modules, exemplary layer separation per module |
+ | Maintainability | A | Production-quality code, clear patterns |
+ 
+ ## Structure
+-- 31 content modules with per-module layers: `domain/model`, `application/model`, `adapters/driving/http`, `adapters/driven/pulsar`, `module/implementation`, `module/test/specification`
+-- 58 production files, 26 test files
++- 47 content modules with per-module layers: `domain/model`, `application/model`, `adapters/driving/http`, `adapters/driven/pulsar`, `module/implementation`, `module/test/specification`
++- 58 production files, 29 test files
+ - Patterns: DDD, hexagonal/ports-and-adapters, event choreography, CQRS (partial)
+ 
+ ## Issues
+ - CQRS incomplete: Query endpoints not implemented (noted in README TODO)
+-- SNAPSHOT dependencies throughout
+ - No error handling / saga / compensation patterns shown
+ - No distributed tracing integration despite OpenTelemetry being available
+ - Single account-event-processor could bottleneck with scale
+diff --git a/README.md b/README.md
+index 78ecafd..0fa1eb4 100644
+--- a/README.md
++++ b/README.md
+@@ -90,12 +90,14 @@ There are different module types, which are the archetypes for every sort of com
+ 
+ ## SDKs
+ 
+-There are also example SDKs in Kotlin.
++### To Do
+ 
+-### Account Holder SDK
++The following example SDKs in Kotlin are planned.
++
++#### Account Holder SDK
+ 
+ This SDK allows a client to perform the operations an account holder can do, including the `send-payment` command, and the `get-current-balance` and `get-transaction-history` queries.
+ 
+-### Deposits SDK
++#### Deposits SDK
+ 
+ This SDK allows a client to inform the system of a deposit that happened on an account.
+\ No newline at end of file
+diff --git a/content/contracts/http/src/main/resources/api/api.yaml b/content/contracts/http/src/main/resources/api/api.yaml
+index cdcaec6..17a6a44 100644
+--- a/content/contracts/http/src/main/resources/api/api.yaml
++++ b/content/contracts/http/src/main/resources/api/api.yaml
+@@ -77,8 +77,8 @@ paths:
+             schema:
+               $ref: '/modulith-example/payment-command-endpoint/arguments/Arguments.json'
+             examples:
+-              DepositEvent:
+-                summary: A deposit event.
++              SendPayment:
++                summary: A send payment command.
+                 value:
+                   {
+                     "amount": { "currency": "GBP","units": 2246243 },
+diff --git a/content/modules/deposit-event-endpoint/adapters/driving/http/endpoint/src/main/kotlin/sollecitom/services/modulith_example/modules/deposit_event_endpoint/adapters/driving/http/endpoint/DepositEventEndpoint.kt b/content/modules/deposit-event-endpoint/adapters/driving/http/endpoint/src/main/kotlin/sollecitom/services/modulith_example/modules/deposit_event_endpoint/adapters/driving/http/endpoint/DepositEventEndpoint.kt
+index 4ad6261..2a20693 100644
+--- a/content/modules/deposit-event-endpoint/adapters/driving/http/endpoint/src/main/kotlin/sollecitom/services/modulith_example/modules/deposit_event_endpoint/adapters/driving/http/endpoint/DepositEventEndpoint.kt
++++ b/content/modules/deposit-event-endpoint/adapters/driving/http/endpoint/src/main/kotlin/sollecitom/services/modulith_example/modules/deposit_event_endpoint/adapters/driving/http/endpoint/DepositEventEndpoint.kt
+@@ -22,8 +22,8 @@ class DepositEventEndpoint(private val application: PublishDepositEvent) : Event
+ 
+     override val route = path bind Method.POST toAuthenticated { request ->
+ 
+-        logger.info { "Received a request on path '$path' with arguments $arguments" }
+         val arguments = arguments(request)
++        logger.info { "Received a request on path '$path' with arguments $arguments" }
+ 
+         val result = application.publishDepositEvent(arguments = arguments)
+ 
+diff --git a/content/modules/payment-command-endpoint/adapters/driven/nats/build.gradle.kts b/content/modules/payment-command-endpoint/adapters/driven/nats/build.gradle.kts
+index f4df86b..b546817 100644
+--- a/content/modules/payment-command-endpoint/adapters/driven/nats/build.gradle.kts
++++ b/content/modules/payment-command-endpoint/adapters/driven/nats/build.gradle.kts
+@@ -4,4 +4,9 @@ plugins {
+ 
+ dependencies {
+     api(projects.sharedNatsAdapter)
+-}
+\ No newline at end of file
++
++    testImplementation(projects.sharedAccountDomainTestUtils)
++    testImplementation(libs.swissknife.ddd.test.utils)
++    testImplementation(libs.swissknife.core.test.utils)
++    testImplementation(libs.swissknife.test.utils)
++}
+diff --git a/content/modules/payment-command-endpoint/adapters/driven/nats/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driven/nats/StubbedSendPaymentProcessingResultSubscriber.kt b/content/modules/payment-command-endpoint/adapters/driven/nats/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driven/nats/StubbedSendPaymentProcessingResultSubscriber.kt
+index b4ebf4a..c87fad9 100644
+--- a/content/modules/payment-command-endpoint/adapters/driven/nats/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driven/nats/StubbedSendPaymentProcessingResultSubscriber.kt
++++ b/content/modules/payment-command-endpoint/adapters/driven/nats/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driven/nats/StubbedSendPaymentProcessingResultSubscriber.kt
+@@ -11,13 +11,7 @@ class StubbedSendPaymentProcessingResultSubscriber(private val awaitResult: susp
+ 
+     private val scope = CoroutineScope(SupervisorJob())
+ 
+-    override fun SendPaymentCommandReceived.processingResult(): Deferred<PaymentProcessingResult> = with(scope) {
++    override fun SendPaymentCommandReceived.processingResult(): Deferred<PaymentProcessingResult> = scope.async(start = CoroutineStart.UNDISPATCHED) { awaitResult() }
+ 
+-        val deferred = CompletableDeferred<PaymentProcessingResult>()
+-        async(start = CoroutineStart.UNDISPATCHED) {
+-            val result = awaitResult()
+-            deferred.complete(result)
+-        }
+-        return deferred
+-    }
+-}
+\ No newline at end of file
++    fun stop() = scope.cancel()
++}
+diff --git a/content/modules/payment-command-endpoint/adapters/driven/nats/src/test/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driven/nats/StubbedSendPaymentProcessingResultSubscriberTests.kt b/content/modules/payment-command-endpoint/adapters/driven/nats/src/test/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driven/nats/StubbedSendPaymentProcessingResultSubscriberTests.kt
+new file mode 100644
+index 0000000..de50996
+--- /dev/null
++++ b/content/modules/payment-command-endpoint/adapters/driven/nats/src/test/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driven/nats/StubbedSendPaymentProcessingResultSubscriberTests.kt
+@@ -0,0 +1,31 @@
++package sollecitom.services.modulith_example.modules.payment_command_endpoint.adapters.driven.nats
++
++import assertk.assertFailure
++import assertk.assertThat
++import assertk.assertions.hasMessage
++import assertk.assertions.isTrue
++import kotlinx.coroutines.test.runTest
++import org.junit.jupiter.api.Test
++import org.junit.jupiter.api.TestInstance
++import org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS
++import sollecitom.libs.swissknife.core.test.utils.testProvider
++import sollecitom.libs.swissknife.core.utils.CoreDataGenerator
++import sollecitom.libs.swissknife.ddd.test.utils.asEvent
++import sollecitom.services.modulith_example.shared.account.domain.model.event.SendPaymentCommand
++import sollecitom.services.modulith_example.shared.account.domain.test.utils.create
++
++@TestInstance(PER_CLASS)
++class StubbedSendPaymentProcessingResultSubscriberTests : CoreDataGenerator by CoreDataGenerator.testProvider {
++
++    @Test
++    fun `a failure while awaiting the result fails the processing result`() = runTest {
++
++        val subscriber = StubbedSendPaymentProcessingResultSubscriber { error("Result could not be awaited") }
++        val command = SendPaymentCommand.create().asEvent()
++
++        val processingResult = with(subscriber) { command.processingResult() }
++
++        assertThat(processingResult.isCompleted).isTrue()
++        assertFailure { processingResult.await() }.hasMessage("Result could not be awaited")
++    }
++}
+diff --git a/content/modules/payment-command-endpoint/adapters/driving/http/endpoint/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driving/http/endpoint/SendPaymentCommandEndpoint.kt b/content/modules/payment-command-endpoint/adapters/driving/http/endpoint/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driving/http/endpoint/SendPaymentCommandEndpoint.kt
+index bb61845..874a73d 100644
+--- a/content/modules/payment-command-endpoint/adapters/driving/http/endpoint/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driving/http/endpoint/SendPaymentCommandEndpoint.kt
++++ b/content/modules/payment-command-endpoint/adapters/driving/http/endpoint/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/adapters/driving/http/endpoint/SendPaymentCommandEndpoint.kt
+@@ -25,8 +25,8 @@ class SendPaymentCommandEndpoint(private val application: SendPayment, private v
+ 
+     override val route = path bind Method.POST toAuthenticated { request ->
+ 
+-        logger.info { "Received a request on path '$path' with arguments $arguments" }
+         val arguments = arguments(request)
++        logger.info { "Received a request on path '$path' with arguments $arguments" }
+ 
+         val result = application.sendPayment(arguments = arguments)
+         if (result is ApplicationResult.Successful) {
+diff --git a/content/modules/payment-command-endpoint/module/implementation/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/module/implementation/PaymentCommandEndpointModule.kt b/content/modules/payment-command-endpoint/module/implementation/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/module/implementation/PaymentCommandEndpointModule.kt
+index 216f53f..275e55a 100644
+--- a/content/modules/payment-command-endpoint/module/implementation/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/module/implementation/PaymentCommandEndpointModule.kt
++++ b/content/modules/payment-command-endpoint/module/implementation/src/main/kotlin/sollecitom/services/modulith_example/modules/payment_command_endpoint/module/implementation/PaymentCommandEndpointModule.kt
+@@ -18,7 +18,6 @@ import sollecitom.services.modulith_example.modules.payment_command_endpoint.ada
+ import sollecitom.services.modulith_example.modules.payment_command_endpoint.application.model.Application
+ import sollecitom.services.modulith_example.modules.payment_command_endpoint.application.model.create
+ import sollecitom.services.modulith_example.modules.payment_command_endpoint.domain.model.PaymentProcessingResult.ProcessedSuccessfully
+-import sollecitom.services.modulith_example.modules.payment_command_endpoint.domain.model.SendPaymentProcessingResultSubscriber
+ import sollecitom.services.modulith_example.shared.account.messaging.adapters.accountEvent
+ import kotlin.time.Duration.Companion.seconds
+ 
+@@ -27,7 +26,7 @@ private class PaymentCommandEndpointModule(pulsarClient: PulsarClient, serviceIn
+     override val name get() = moduleName
+     private val instanceInfo = serviceInfo.withModuleName(moduleName)
+     private val accountEventPublisher = MessagePublisher.accountEvent(pulsarClient, instanceInfo)
+-    private val sendPaymentProcessingResultSubscriber: SendPaymentProcessingResultSubscriber = StubbedSendPaymentProcessingResultSubscriber {
++    private val sendPaymentProcessingResultSubscriber = StubbedSendPaymentProcessingResultSubscriber {
+         delay(2.seconds)
+         ProcessedSuccessfully
+     }
+@@ -38,7 +37,10 @@ private class PaymentCommandEndpointModule(pulsarClient: PulsarClient, serviceIn
+ 
+     override suspend fun start() = accountEventPublisher.start()
+ 
+-    override suspend fun stop() = accountEventPublisher.stop()
++    override suspend fun stop() {
++        accountEventPublisher.stop()
++        sendPaymentProcessingResultSubscriber.stop()
++    }
+ 
+     companion object : Loggable() {
+ 
+diff --git a/content/service/starter/src/main/kotlin/sollecitom/services/modulith_example/service/starter/Service.kt b/content/service/starter/src/main/kotlin/sollecitom/services/modulith_example/service/starter/Service.kt
+index eb78864..d3b5e1c 100644
+--- a/content/service/starter/src/main/kotlin/sollecitom/services/modulith_example/service/starter/Service.kt
++++ b/content/service/starter/src/main/kotlin/sollecitom/services/modulith_example/service/starter/Service.kt
+@@ -80,6 +80,7 @@ class Service(private val environment: Environment, coreDataGenerators: CoreData
+             logger.info { "Stopped module '${module.name.value}'" }
+         }
+         healthHttpDrivingAdapter.stop()
++        pulsarClient.value.close()
+         logServiceStopped()
+     }
+ 
+diff --git a/content/service/test/in-process/src/test/kotlin/sollecitom/services/modulith_example/service/test/in_process/InProcessServiceTests.kt b/content/service/test/in-process/src/test/kotlin/sollecitom/services/modulith_example/service/test/in_process/InProcessServiceTests.kt
+index c9e7560..c8e0079 100644
+--- a/content/service/test/in-process/src/test/kotlin/sollecitom/services/modulith_example/service/test/in_process/InProcessServiceTests.kt
++++ b/content/service/test/in-process/src/test/kotlin/sollecitom/services/modulith_example/service/test/in_process/InProcessServiceTests.kt
+@@ -14,6 +14,7 @@ import sollecitom.libs.swissknife.configuration.utils.instanceGroupName
+ import sollecitom.libs.swissknife.configuration.utils.instanceNodeName
+ import sollecitom.libs.swissknife.core.domain.identity.factory.invoke
+ import sollecitom.libs.swissknife.core.domain.lifecycle.startBlocking
++import sollecitom.libs.swissknife.core.domain.lifecycle.stopBlocking
+ import sollecitom.libs.swissknife.core.test.utils.testProvider
+ import sollecitom.libs.swissknife.core.utils.CoreDataGenerator
+ import sollecitom.libs.swissknife.lens.core.extensions.networking.healthPort
+@@ -71,5 +72,8 @@ class InProcessServiceTests : ServiceTestSpecification, CoreDataGenerator by Cor
+     }
+ 
+     @AfterAll
+-    fun afterAll() = specificationAfterAll()
++    fun afterAll() {
++        service.stopBlocking()
++        specificationAfterAll()
++    }
+ }
+\ No newline at end of file
+diff --git a/content/shared/account/domain/model/src/main/kotlin/sollecitom/services/modulith_example/shared/account/domain/model/event/AccountEventDataExtensions.kt b/content/shared/account/domain/model/src/main/kotlin/sollecitom/services/modulith_example/shared/account/domain/model/event/AccountEventDataExtensions.kt
+index bb42726..320a22e 100644
+--- a/content/shared/account/domain/model/src/main/kotlin/sollecitom/services/modulith_example/shared/account/domain/model/event/AccountEventDataExtensions.kt
++++ b/content/shared/account/domain/model/src/main/kotlin/sollecitom/services/modulith_example/shared/account/domain/model/event/AccountEventDataExtensions.kt
+@@ -6,4 +6,4 @@ fun SendPaymentCommand.rejectedDueToAccountNotFound(): SendPaymentCommand.Accoun
+ 
+ fun SendPaymentCommand.accepted(): OutboundPayment = OutboundPayment(sourceAccount = sourceAccount, amount = amount, targetAccount = targetAccount)
+ 
+-fun OutboundPayment.inbound(): InboundPayment = InboundPayment(targetAccount = sourceAccount, sourceAccount = targetAccount, amount = amount)
+\ No newline at end of file
++fun OutboundPayment.inbound(): InboundPayment = InboundPayment(targetAccount = targetAccount, sourceAccount = sourceAccount, amount = amount)
+\ No newline at end of file
+diff --git a/content/shared/account/domain/model/src/test/kotlin/sollecitom/services/modulith_example/shared/account/domain/model/event/AccountEventDataExtensionsTests.kt b/content/shared/account/domain/model/src/test/kotlin/sollecitom/services/modulith_example/shared/account/domain/model/event/AccountEventDataExtensionsTests.kt
+new file mode 100644
+index 0000000..3e7f845
+--- /dev/null
++++ b/content/shared/account/domain/model/src/test/kotlin/sollecitom/services/modulith_example/shared/account/domain/model/event/AccountEventDataExtensionsTests.kt
+@@ -0,0 +1,23 @@
++package sollecitom.services.modulith_example.shared.account.domain.model.event
++
++import assertk.assertThat
++import assertk.assertions.isEqualTo
++import org.junit.jupiter.api.Test
++import org.junit.jupiter.api.TestInstance
++import org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS
++import sollecitom.libs.swissknife.core.domain.currency.known.pence
++import sollecitom.services.modulith_example.shared.account.domain.model.reference.InternalAccountNumber
++
++@TestInstance(PER_CLASS)
++class AccountEventDataExtensionsTests {
++
++    @Test
++    fun `the inbound payment of an outbound payment credits the target account from the source account`() {
++
++        val outboundPayment = OutboundPayment(sourceAccount = InternalAccountNumber("111111111111111"), amount = 2500.pence, targetAccount = InternalAccountNumber("222222222222222"))
++
++        val inboundPayment = outboundPayment.inbound()
++
++        assertThat(inboundPayment).isEqualTo(InboundPayment(targetAccount = InternalAccountNumber("222222222222222"), amount = 2500.pence, sourceAccount = InternalAccountNumber("111111111111111")))
++    }
++}
+diff --git a/content/shared/account/domain/test/utils/src/main/kotlin/sollecitom/services/modulith_example/shared/account/domain/test/utils/InternalAccountNumberTestFactories.kt b/content/shared/account/domain/test/utils/src/main/kotlin/sollecitom/services/modulith_example/shared/account/domain/test/utils/InternalAccountNumberTestFactories.kt
+index 061b417..fe19345 100644
+--- a/content/shared/account/domain/test/utils/src/main/kotlin/sollecitom/services/modulith_example/shared/account/domain/test/utils/InternalAccountNumberTestFactories.kt
++++ b/content/shared/account/domain/test/utils/src/main/kotlin/sollecitom/services/modulith_example/shared/account/domain/test/utils/InternalAccountNumberTestFactories.kt
+@@ -5,4 +5,4 @@ import sollecitom.libs.swissknife.core.utils.nextInt
+ import sollecitom.services.modulith_example.shared.account.domain.model.reference.InternalAccountNumber
+ 
+ context(random: RandomGenerator)
+-fun InternalAccountNumber.Companion.create(value: String = generateSequence { random.nextInt(0, 9) }.take(15).joinToString(separator = "")): InternalAccountNumber = InternalAccountNumber(value = value)
+\ No newline at end of file
++fun InternalAccountNumber.Companion.create(value: String = generateSequence { random.nextInt(0, 10) }.take(15).joinToString(separator = "")): InternalAccountNumber = InternalAccountNumber(value = value)
+\ No newline at end of file
+diff --git a/content/shared/account/messaging/adapters/src/main/kotlin/sollecitom/services/modulith_example/shared/account/messaging/adapters/PulsarAccountEventPublisher.kt b/content/shared/account/messaging/adapters/src/main/kotlin/sollecitom/services/modulith_example/shared/account/messaging/adapters/PulsarAccountEventPublisher.kt
+index b2748ee..2e6db91 100644
+--- a/content/shared/account/messaging/adapters/src/main/kotlin/sollecitom/services/modulith_example/shared/account/messaging/adapters/PulsarAccountEventPublisher.kt
++++ b/content/shared/account/messaging/adapters/src/main/kotlin/sollecitom/services/modulith_example/shared/account/messaging/adapters/PulsarAccountEventPublisher.kt
+@@ -29,7 +29,7 @@ private class PulsarAccountEventPublisher(
+     override suspend fun publish(value: AccountEvent, parentMessageId: Message.Id?, originatingMessageId: Message.Id?) {
+ 
+         val messageId = messageProducer.produce(value, parentMessageId, originatingMessageId)
+-        logger.info { "Successfully produced compliance plan event in Avro to topic Pulsar '${messageProducer.topic.fullName.value}'. Message ID: '${messageId.stringRepresentation}', Event: {$value}" }
++        logger.info { "Successfully produced account event in Avro to topic Pulsar '${messageProducer.topic.fullName.value}'. Message ID: '${messageId.stringRepresentation}', Event: {$value}" }
+     }
+ 
+     override suspend fun start() = messageProducer.start()
+diff --git a/content/shared/account/serialization/avro/src/test/kotlin/sollecitom/services/modulith_example/shared/account/serialization/avro/event/AccountEventAvroSerdeTests.kt b/content/shared/account/serialization/avro/src/test/kotlin/sollecitom/services/modulith_example/shared/account/serialization/avro/event/AccountEventAvroSerdeTests.kt
+index 8afacb5..b337656 100644
+--- a/content/shared/account/serialization/avro/src/test/kotlin/sollecitom/services/modulith_example/shared/account/serialization/avro/event/AccountEventAvroSerdeTests.kt
++++ b/content/shared/account/serialization/avro/src/test/kotlin/sollecitom/services/modulith_example/shared/account/serialization/avro/event/AccountEventAvroSerdeTests.kt
+@@ -8,6 +8,7 @@ import sollecitom.libs.swissknife.core.utils.CoreDataGenerator
+ import sollecitom.libs.swissknife.ddd.test.utils.asEvent
+ import sollecitom.services.modulith_example.shared.account.domain.model.event.AccountEvent
+ import sollecitom.services.modulith_example.shared.account.domain.model.event.Deposit
++import sollecitom.services.modulith_example.shared.account.domain.model.event.InboundPayment
+ import sollecitom.services.modulith_example.shared.account.domain.model.event.OutboundPayment
+ import sollecitom.services.modulith_example.shared.account.domain.model.event.SendPaymentCommand
+ import sollecitom.services.modulith_example.shared.account.domain.test.utils.create
+@@ -21,7 +22,7 @@ class AccountEventAvroSerdeTests : AcmeAvroSerdeTestSpecification<AccountEvent>,
+     override fun parameterizedArguments() = listOf(
+         "deposit" to Deposit.create().asEvent(),
+         "outbound-payment" to OutboundPayment.create().asEvent(),
+-        "inbound-payment" to OutboundPayment.create().asEvent(),
++        "inbound-payment" to InboundPayment.create().asEvent(),
+         "send-payment-command-received" to SendPaymentCommand.create().asEvent(),
+         "insufficient-balance-for-send-payment-command-received" to SendPaymentCommand.InsufficientBalanceError.create().asEvent(),
+         "account-not-found-for-send-payment-command-received" to SendPaymentCommand.AccountNotFoundError.create().asEvent()
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index 11d0624..01f7794 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -2,10 +2,10 @@
+ # libraries
+ kotlin = "2.4.20"
+ http4k = "6.61.0.0"
+-sollecitom-gradle-plugins = "1.0.32"
+-sollecitom-swissknife = "1.0.35"
+-sollecitom-pillar = "1.0.17"
+-sollecitom-acme-schema-catalogue = "1.0.6"
++sollecitom-gradle-plugins = "1.0.33"
++sollecitom-swissknife = "1.0.37"
++sollecitom-pillar = "1.0.19"
++sollecitom-acme-schema-catalogue = "1.0.7"
+ # plugins
+ palantir-git-plugin = "5.1.0"
+ 
+diff --git a/scripts/update-gradle.sh b/scripts/update-gradle.sh
+index 88fee42..793bea4 100755
+--- a/scripts/update-gradle.sh
++++ b/scripts/update-gradle.sh
+@@ -20,7 +20,8 @@ updated_checksum=$(curl -fsSL "${updated_url}.sha256")
+     --no-validate-url
+ 
+ if grep -q '^validateDistributionUrl=' "$props_file"; then
+-    sed -i '' 's/validateDistributionUrl=.*/validateDistributionUrl=true/' "$props_file"
++    sed -i.bak 's/validateDistributionUrl=.*/validateDistributionUrl=true/' "$props_file"
++    rm "${props_file}.bak"
+ else
+     printf '\nvalidateDistributionUrl=true\n' >> "$props_file"
+ fi

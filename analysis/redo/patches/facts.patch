@@ -1,0 +1,26 @@
+diff --git a/.gitignore b/.gitignore
+index a2d75b2..2ec31ab 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -37,5 +37,6 @@ workspace.xml
+ 
+ *.tgz
+ Chart.lock
+-*.pidjava_pid*.hprof
++*.pid
++java_pid*.hprof
+ .nwave
+diff --git a/scripts/update-gradle.sh b/scripts/update-gradle.sh
+index 88fee42..793bea4 100755
+--- a/scripts/update-gradle.sh
++++ b/scripts/update-gradle.sh
+@@ -20,7 +20,8 @@ updated_checksum=$(curl -fsSL "${updated_url}.sha256")
+     --no-validate-url
+ 
+ if grep -q '^validateDistributionUrl=' "$props_file"; then
+-    sed -i '' 's/validateDistributionUrl=.*/validateDistributionUrl=true/' "$props_file"
++    sed -i.bak 's/validateDistributionUrl=.*/validateDistributionUrl=true/' "$props_file"
++    rm "${props_file}.bak"
+ else
+     printf '\nvalidateDistributionUrl=true\n' >> "$props_file"
+ fi
