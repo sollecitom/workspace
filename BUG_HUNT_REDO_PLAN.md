@@ -257,6 +257,8 @@ Mechanical version bumps only — nothing to redo by hand.
 
 ### quality-scorer
 
+**Agreed 2026-10-06:** 6.1, 6.3, 6.4, 6.7 (project in its infancy).
+
 **Keep as is**
 - 6.1 (I4 C5) A nonexistent `--project` scored 0.65; now exits with an error (empty-directory policy stays open).
 - 6.3 (I3 C5) `@BeforeTest`/`@AfterTest` were counted as assertion-free tests.
@@ -366,5 +368,7 @@ Mechanical version bumps only — nothing to redo by hand.
 2. `just build-workspace` — fix everything until green, then commit.
 3. `just update-workspace` — fix everything until green, then commit.
 4. Parse the build logs (service tests included) and analyse warnings; fix the ones worth addressing.
-5. Compare the code with what the libraries and language offer (Kotlin, coroutines, http4k, Pulsar client, Avro,
+5. Inspect code readability after the changes and keep it really good (names, structure, consistency with the
+   surrounding code) — fix anything the redo made worse.
+6. Compare the code with what the libraries and language offer (Kotlin, coroutines, http4k, Pulsar client, Avro,
    JUnit/AssertK, Gradle…) to spot newer patterns and possibilities we could use but aren't; present them.
