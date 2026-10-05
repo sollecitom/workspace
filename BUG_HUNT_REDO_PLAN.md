@@ -265,6 +265,8 @@ Mechanical version bumps only — nothing to redo by hand.
 
 ### examples
 
+**Agreed 2026-10-05:** 7.1, 7.2, 7.3, 7.4.
+
 **Keep as is**
 - 7.1 (I3 C4) `Transaction.equals` compared ids only, so serde tests couldn't catch corrupted fields.
 - 7.2 (I2 C5) The D&D modifier truncated instead of flooring (strength 9 → 0 instead of −1).
