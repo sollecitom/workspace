@@ -65,7 +65,7 @@ confirms we are done.
 - [ ] 9.15 **L** `requiredBits` wrong for powers of two and 0 — uncertain: semantics undefined and unused; only 0 → Int.MIN_VALUE is wrong under every reading
 - [ ] 9.17 **M** Invalid toggle value from a header makes context logging throw — needs decision: real; reject at gateway, lenient EnumToggle, or tolerate in logLevel
 - [ ] 9.21 **L** `Trace.isParent` means "is root" — needs decision: real; public rename
-- [ ] 9.22 **H** `configurationPropertiesUnderRoot` returns null values (Pulsar overrides dropped in both services) — needs decision: real but mis-described — http4k normalises keys (lowercase, `.`/`_`→`-`), so the result is an empty map and camelCase Pulsar names can't be recovered; needs an explicit key list or raw source
+- [x] 9.22 **H** `configurationPropertiesUnderRoot` returns null values (Pulsar overrides dropped in both services) — needs decision: real but mis-described — http4k normalises keys (lowercase, `.`/`_`→`-`), so the result is an empty map and camelCase Pulsar names can't be recovered; needs an explicit key list or raw source — decided 2026-10-06: helper matches keys in any spelling against known names and fails on unknown keys; Pulsar names kept in swissknife `PulsarClientSettings`, checked against the Pulsar version by a build-time test
 - [ ] 9.25 **L** Blake3 `*_BITES` constants are bytes; unused `zero-allocation-hashing` dependency — unused dependency removed; needs decision: renaming public `*_BITES` constants
 - [ ] 9.26 **L** `ResourceLoader` fails for jar resources and names with `:` — colon names fixed (test); needs decision: jar resources have no Path
 - [ ] 9.27 **L** `update-container-versions.sh` picks most recently updated tag, not highest — needs decision: real; tag-selection policy
@@ -143,7 +143,7 @@ confirms we are done.
 - [ ] 12.3 **M** Chart image repositories/tags don't match the images the build produces — needs decision: real; registry/tags
 - [ ] 12.4 **M** No startupProbe; liveness budget shorter than startup — needs decision: real; probe budget
 - [ ] 12.5 **M** Trivy scans only the service image, not the migrator — needs decision: real; scan scope
-- [ ] 12.9 **M** Pulsar config overrides dropped (see 9.22 — blocked on 9.22 (needs decision); no change needed in this repo once fixed upstream
+- [x] 12.9 **M** Pulsar config overrides dropped (see 9.22 — blocked on 9.22 (needs decision); no change needed in this repo once fixed upstream — fixed with 9.22
 - [ ] 12.10 **M** Random instance id; `INSTANCE_NODE_NAME` never read — needs decision: real; instance identity
 - [ ] 12.11 **M** R2DBC without a connection pool — needs decision: real; pool choice
 - [ ] 12.12 **L** `stop()` doesn't close clients; first failure skips the rest — needs decision: real; stop-failure policy, and nothing to close until 12.11
