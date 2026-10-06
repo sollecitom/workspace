@@ -97,17 +97,17 @@ confirms we are done.
 - [ ] 9.95 **L** `LocalHttpDrivingAdapterTestSpecification.meterRegistry` new per access — needs decision: interface can't hold per-instance state; abstract breaks consumers
 - [ ] 9.101 **L** Toggle lens rejects values containing `=` — needs decision: `{id}={value}` format ambiguous either way
 - [ ] 9.102 **L** Readiness `runBlocking` has no timeout — needs decision: real; timeout value
-- [ ] 9.103 **H** Pulsar `AvroReader` ignores the writer schema version (schema evolution broken) — uncertain: real, but AvroSchema.clone() shares one reader across per-topic clones, so delegating would mix writer schemas across topics of a multi-topic consumer; needs per-clone readers (design)
+- [x] 9.103 **H** Pulsar `AvroReader` ignores the writer schema version (schema evolution broken) — uncertain: real, but AvroSchema.clone() shares one reader across per-topic clones, so delegating would mix writer schemas across topics of a multi-topic consumer; needs per-clone readers (design) — fixed 2026-10-06: public-API Pulsar schema decodes with the writer schema version (container test)
 - [ ] 9.104 **H** Pulsar consumers forced to Failover — needs decision: real; consumers rely on Failover ordering
 - [ ] 9.105 **M** Partition-change listener loses events; `runBlocking` on Pulsar thread — needs decision: real; replay/buffer and drop-vs-backpressure
 - [ ] 9.107 **M** `setAutoTopicCreation` called twice with wrong enum format — needs decision: visible in code; broker behaviour needs a running broker
 - [ ] 9.111 **L** Blocking Pulsar subscribe/create/close in suspend functions; `stop()` connects — needs decision: real; async API redesign
-- [ ] 9.113 **L** `MultiVersionGenericAvroReader` would mutate the shared schema once 9.103 is fixed — latent until 9.103
+- [x] 9.113 **L** `MultiVersionGenericAvroReader` would mutate the shared schema once 9.103 is fixed — latent until 9.103 — fixed with 9.103: no shared mutable reader (clone() builds a fresh schema)
 - [ ] 9.116 **M** `MessagingTestSpecification` unimplemented; no Pulsar tests — needs decision: test build-out
 - [ ] 9.117 **L** `produceAndAwaitSuccessor` drops non-matching messages — needs decision: real; nacking loops in tests
 - [ ] 9.119 **L** `toOutboundMessage(value, parent)` creates a sibling — needs decision: semantics
 - [ ] 9.120 **L** Namespace-less topics don't round-trip — needs decision: topic model
-- [ ] 9.122 **M** NATS no flush after subscribe — needs decision: real; flush timeout/failure policy
+- [ ] 9.122 **M** NATS no flush after subscribe — needs decision: real; flush timeout/failure policy — applied 2026-10-06 to fix a flaky test: flush with a 10s timeout after subscribing, failure propagates; **confirm**
 - [ ] 9.128 **L** JSON `getInt`/`getLong` narrow silently — needs decision: real; null vs throw for fractions/overflow
 - [ ] 9.131 **L** JSON checker rules only inspect top level — needs decision: stricter rules, nested path reporting
 - [ ] 9.133 **M** MDC in `InheritableThreadLocal` leaks into pool threads — needs decision: MDC propagation semantics
@@ -182,5 +182,5 @@ confirms we are done.
 ## New (from the redo and the 2026-10-06 review)
 
 - [ ] N.1 **L** package-migrator: migrating `a.b` → `a.b.v2` still fails in the directory phase (moves a directory into itself)
-- [ ] N.2 **H** Pulsar 5 migration (client pinned at 4.2.4): unshaded artifacts or no internals — in progress
+- [ ] N.2 **H** Pulsar 5: swissknife now uses only public Pulsar APIs (works on 4.2.4 and 5.0.0), but 5.0.0 is blocked by slog 0.10.0 (picks Log4j2 when log4j-api is present, then needs log4j-core; our services carry log4j-to-slf4j for Yauaa). Client pinned at 4.2.4 until slog is fixed — options to discuss
 - [ ] N.3 **L** Readability leftovers: one failure-injection style in the two `CompliancePlanEventProcessingTests`; Pulsar client closing style in the outputs-manager module spec; package-migrator relative-path helper
