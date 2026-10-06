@@ -23,10 +23,10 @@ confirms we are done.
 - [x] 4.5 **M** `AuthenticatedAccess.json` requires `is-test`; Avro twin has no `is_test` — needs decision: real; add `is_test` to Avro (pillar serde change) or drop from JSON required — decided 2026-10-06: add is_test to AuthenticatedAccess.avsc and pillar serde (to do)
 - [x] 4.6 **L** `EncryptionMetadata` union omits XTS — needs decision: real; adding XTS needs a pillar change, or delete the XTS schema — decided 2026-10-06: add XTS to the EncryptionMetadata union (to do)
 - [x] 4.7 **L** `ServiceAccount.json` flattened vs Avro internal/external union — needs decision: real; modelling choice — decided 2026-10-06: leave them different: the JSON form only exists for a JavaScript client that cannot use Avro
-- [x] 4.8 **L** `CurrencyAmount.json` `units` integer ≥ 0 vs Avro string (negatives) — needs decision: real; modelling choice — decided 2026-10-06: no negatives; units as a big integer (Avro: non-negative decimal-digit string checked by the serde; JSON: string ^[0-9]+$, JS-safe) (to do)
+- [x] 4.8 **L** `CurrencyAmount.json` `units` integer ≥ 0 vs Avro string (negatives) — needs decision: real; modelling choice — decided 2026-10-06: no negatives; units as a big integer (Avro: bytes decimal, precision 100, scale 0, as BigInteger, serde rejects negatives; JSON: string ^[0-9]+$, JS-safe) (to do)
 - [x] 4.10 **L** `Unit.json` only allows the placeholder `"<unit>"` — needs decision: real; fill the enum or delete — decided 2026-10-06: by design (pillar serialises Kotlin Unit as "<unit>")
 - [x] 4.11 **L** `PaginationArguments.json` `limit` has no minimum — needs decision: real; minimum 0 or 1 is a product call — decided 2026-10-06: minimum 1 (to do)
-- [ ] 4.12 **L** `envelope_type` free string, not tied to the union branch — needs decision: real; modelling choice
+- [x] 4.12 **L** `envelope_type` free string, not tied to the union branch — needs decision: real; modelling choice — decided 2026-10-06: keep the envelope records (Avro cannot nest unions) but drop envelope_type: the union branch identifies the case, serdes dispatch on the branch record name; per-union type enums and the swissknife enum-type envelope helpers go (to do)
 
 ## 5. tools
 
