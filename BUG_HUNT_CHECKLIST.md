@@ -8,13 +8,13 @@ confirms we are done.
 
 ## 1. Workspace root (scripts, justfile, docs, policy)
 
-- [ ] 1.16 **L** `policy/license-policy.yml` aliases `MIT-0`→`0BSD` and `Public Domain`→`CC0-1.0` (different licenses) — needs decision: real; which licenses to allow is a policy choice
+- [x] 1.16 **L** `policy/license-policy.yml` aliases `MIT-0`→`0BSD` and `Public Domain`→`CC0-1.0` (different licenses) — needs decision: real; which licenses to allow is a policy choice — decided 2026-10-06: dropped the MIT-0 and bare Public Domain aliases
 
 ## 3. gradle-plugins
 
-- [ ] 3.3 **M** Jib `user`/`imageFormat` hardcoded; KDoc says reproducible default is false (it's true) — KDoc corrected; needs decision: honouring user/imageFormat needs afterEvaluate (Jib API is eager) or dropping the two settings
-- [ ] 3.8 **L** Placeholder `maven.pkg.github.com/acme/*` repo added whenever GitHub env vars are set — needs decision: real; whether the placeholder repo should exist at all
-- [ ] 3.10 **L** `UpdateInternalCatalogVersionsTask` registered but never used, and diverges from the script — needs decision: real; delete (drops public `internalGroups` extension) or align with the script
+- [x] 3.3 **M** Jib `user`/`imageFormat` hardcoded; KDoc says reproducible default is false (it's true) — KDoc corrected; needs decision: honouring user/imageFormat needs afterEvaluate (Jib API is eager) or dropping the two settings — decided 2026-10-06: removed the ignored user/imageFormat settings (always nobody/OCI)
+- [x] 3.8 **L** Placeholder `maven.pkg.github.com/acme/*` repo added whenever GitHub env vars are set — needs decision: real; whether the placeholder repo should exist at all — decided 2026-10-06: GitHub Packages repository commented out (no GitHub build today)
+- [x] 3.10 **L** `UpdateInternalCatalogVersionsTask` registered but never used, and diverges from the script — needs decision: real; delete (drops public `internalGroups` extension) or align with the script — decided 2026-10-06: deleted the unused task and its internalGroups setting
 
 ## 4. acme-schema-catalogue
 
