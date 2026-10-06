@@ -126,17 +126,17 @@ confirms we are done.
 
 ## 11. modulith-example
 
-- [ ] 11.1 **H** Production payment module wired to an always-success stub — needs decision: real; response contract
+- [x] 11.1 **H** Production payment module wired to an always-success stub — needs decision: real; response contract — left to the owner (2026-10-06): building the processor and the NATS outcome round trip is his to do later
 - [x] 11.2 **H** No check that the caller owns the source account — needs decision: real; authorisation — decided 2026-10-06: the account-event-processor checks ownership when handling the command and publishes a rejection; recorded as a README requirement and a TODO on the unimplemented handler (built with 11.8)
-- [ ] 11.3 **M** Fresh event id per request and publish-before-wait: retries double-apply — needs decision: real; idempotency
-- [ ] 11.6 **L** Payment module test asserts status only — needs decision: real; right expectation depends on 11.1
-- [ ] 11.8 **H** account-event-processor handlers all TODO (unwired); README says Done — needs decision: real; README section left as is
-- [ ] 11.10 **M** No positive-amount check on payments/deposits — needs decision: real; domain rule
+- [x] 11.3 **M** Fresh event id per request and publish-before-wait: retries double-apply — needs decision: real; idempotency — left to the owner with 11.1 (same piece of work)
+- [x] 11.6 **L** Payment module test asserts status only — needs decision: real; right expectation depends on 11.1 — left to the owner with 11.1 (same piece of work)
+- [x] 11.8 **H** account-event-processor handlers all TODO (unwired); README says Done — needs decision: real; README section left as is — left to the owner with 11.1 (same piece of work)
+- [x] 11.10 **M** No positive-amount check on payments/deposits — needs decision: real; domain rule — left to the owner with 11.1 (same piece of work)
 - [ ] 11.11 **L** `AccountEvent.avsc` wrong record name (see 4.1) — needs decision: see 4.1
 - [ ] 11.12 **L** Publisher log says "compliance plan event" and leaks amounts — log text fixed; needs decision: logging full events at INFO
 - [ ] 11.16 **L** Random node name; `INSTANCE_*` env vars never read — needs decision: real; instance identity
 - [ ] 11.18 **L** Registry auth lookup result discarded — needs decision: real; delete or wire Docker auth
-- [ ] 11.19 **L** Partitioned topic only pre-created in tests — needs decision: real; provisioning
+- [x] 11.19 **L** Partitioned topic only pre-created in tests — needs decision: real; provisioning — left to the owner with 11.1 (same piece of work)
 
 ## 12. element-service-example
 
