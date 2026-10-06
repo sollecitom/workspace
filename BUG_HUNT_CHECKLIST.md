@@ -165,14 +165,14 @@ confirms we are done.
 - [x] 12.55 **L** Repository spec missing re-store/empty/null-edition cases — empty-set and null-edition cases added; re-store-keeps-applicability depends on 12.34 — re-store-keeps-decisions case added with 12.34
 - [ ] 12.57 **L** "Nonexistent plan" test uses a stub that always returns a plan — misleading name fixed; a real missing-plan test depends on 12.47
 - [x] 12.60 **H** Ingestion only checks "authenticated" (no role/customer check) — needs decision: real; authorisation — decided 2026-10-06: the gateway restricts event endpoints to allowed machine clients (GATEWAY.md); services trust them
-- [ ] 12.63 **M** No idempotency on ingestion — needs decision: real; idempotency
+- [x] 12.63 **M** No idempotency on ingestion — needs decision: real; idempotency — skipped 2026-10-06 (example): documented in element IMPROVEMENTS.md (issue + improvement 9, idempotency-keyed rotating table)
 - [ ] 12.64 **L** Always 200, even on `ApplicationResult.Error` — needs decision: real; status for a currently unreachable Error
 - [x] 12.66 **H** Notifier serde writes fields its schema forbids; untested — needs decision: real; unclear whether the serde shape or the flat email-contract schema is intended — decided 2026-10-06: schemas now describe the nested plan the serde sends; schema-compliance test over the notification event (fails on the old schema)
 - [ ] 12.67 **M** Lifecycle notifications lose the parent message id — needs decision: real; notifier interface change
 - [ ] 12.71 **M** Round-trip tests can't detect dropped optional fields (see 12.17) — needs decision: see 12.17
 - [ ] 12.72 **M** Body not schema-validated; no size limit (gzip bomb) — proposed close: body size limits are the gateway's job (awaiting confirmation)
 - [ ] 12.73 **L** Contract tests happy path only — needs decision: an Error contract case would lock in 12.64
-- [ ] 12.77 **H** Upsert overwrites newer state (redelivery regresses plans) — needs decision: real; ordering guard design
+- [x] 12.77 **H** Upsert overwrites newer state (redelivery regresses plans) — needs decision: real; ordering guard design — skipped with 12.63 (stale re-posts are the remaining case; documented)
 - [ ] 12.79 **M** `limit` not validated — needs decision: real; limit bounds
 - [ ] 12.83 **L** Null customer becomes `'null'` — null customer now binds SQL NULL (no `'null'` literal); needs decision: reject with 403 instead of empty 200
 - [ ] 12.87 **L** `ApplicableRequirementsOutputsAvailable` not handled — uncertain: nothing produces the event yet
