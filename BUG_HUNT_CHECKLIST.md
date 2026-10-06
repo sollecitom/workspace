@@ -56,17 +56,17 @@ confirms we are done.
 
 ## 9. swissknife
 
-- [ ] 9.2 **M** `UniqueIdFactory` internal/external ignore the injected clock/random — needs decision: real; honour the injected clock/random or drop the parameters
-- [ ] 9.4 **M** `Id.fromString` doesn't round-trip type or text — needs decision: real; round-trip semantics of Id.fromString
-- [ ] 9.6 **M** `CurrencyAmount` division rounds, multiplication truncates — needs decision: finding partly wrong — an existing test asserts division rounds; rounding policy is a choice
-- [ ] 9.7 **M** Logged random seed can't reproduce; seeded `secureRandom` used for JWT keys — needs decision: real; seed / secureRandom design
-- [ ] 9.9 **L** `EmailAddress` validation too loose; test factory emits trailing dot — test factory trailing dot fixed; needs decision: how strict validation should be
-- [ ] 9.10 **L** `EphemeralPort`/`RequestedPort` implement `Comparable<Int>`; "ephemeral" range wrong — needs decision: real; renaming/re-typing public types
-- [ ] 9.15 **L** `requiredBits` wrong for powers of two and 0 — uncertain: semantics undefined and unused; only 0 → Int.MIN_VALUE is wrong under every reading
-- [ ] 9.17 **M** Invalid toggle value from a header makes context logging throw — needs decision: real; reject at gateway, lenient EnumToggle, or tolerate in logLevel
-- [ ] 9.21 **L** `Trace.isParent` means "is root" — needs decision: real; public rename
+- [x] 9.2 **M** `UniqueIdFactory` internal/external ignore the injected clock/random — needs decision: real; honour the injected clock/random or drop the parameters — decided 2026-10-06: honour the injected clock and random for UUIDv7 (internal/external): ULID/KSUID already do since 9.1, the UUID adapter takes neither (to do)
+- [x] 9.4 **M** `Id.fromString` doesn't round-trip type or text — needs decision: real; round-trip semantics of Id.fromString — decided 2026-10-06: fromString always returns a StringId (exact text); add a typed string form "<type>:<value>" (e.g. ulid:01ARZ…) with toTypedString/fromTypedString for round-trips where the type matters (element stores plan ids that way) (to do)
+- [x] 9.6 **M** `CurrencyAmount` division rounds, multiplication truncates — needs decision: finding partly wrong — an existing test asserts division rounds; rounding policy is a choice — decided 2026-10-06: truncate in both division and multiplication (to do)
+- [x] 9.7 **M** Logged random seed can't reproduce; seeded `secureRandom` used for JWT keys — needs decision: real; seed / secureRandom design — decided 2026-10-06: draw the logged seed from a separate source so it reproduces the run; seeding secureRandom stays possible when a seed is explicitly configured (tests), with a startup warning (to do)
+- [x] 9.9 **L** `EmailAddress` validation too loose; test factory emits trailing dot — test factory trailing dot fixed; needs decision: how strict validation should be — decided 2026-10-06: easy tightening only: exactly one @, non-empty local part, domain containing a dot, no whitespace (to do)
+- [x] 9.10 **L** `EphemeralPort`/`RequestedPort` implement `Comparable<Int>`; "ephemeral" range wrong — needs decision: real; renaming/re-typing public types — decided 2026-10-06: Comparable with their own type, correct the ephemeral range doc (to do)
+- [x] 9.15 **L** `requiredBits` wrong for powers of two and 0 — uncertain: semantics undefined and unused; only 0 → Int.MIN_VALUE is wrong under every reading — decided 2026-10-06: fix requiredBits(0) (to do)
+- [x] 9.17 **M** Invalid toggle value from a header makes context logging throw — needs decision: real; reject at gateway, lenient EnumToggle, or tolerate in logLevel — decided 2026-10-06: reject invalid toggle values when the header is parsed (400) (to do)
+- [x] 9.21 **L** `Trace.isParent` means "is root" — needs decision: real; public rename — decided 2026-10-06: rename isParent to isRoot (to do)
 - [x] 9.22 **H** `configurationPropertiesUnderRoot` returns null values (Pulsar overrides dropped in both services) — needs decision: real but mis-described — http4k normalises keys (lowercase, `.`/`_`→`-`), so the result is an empty map and camelCase Pulsar names can't be recovered; needs an explicit key list or raw source — decided 2026-10-06: helper matches keys in any spelling against known names and fails on unknown keys; Pulsar names kept in swissknife `PulsarClientSettings`, checked against the Pulsar version by a build-time test
-- [ ] 9.25 **L** Blake3 `*_BITES` constants are bytes; unused `zero-allocation-hashing` dependency — unused dependency removed; needs decision: renaming public `*_BITES` constants
+- [x] 9.25 **L** Blake3 `*_BITES` constants are bytes; unused `zero-allocation-hashing` dependency — unused dependency removed; needs decision: renaming public `*_BITES` constants — decided 2026-10-06: rename *_BITES to *_BYTES (to do)
 - [ ] 9.26 **L** `ResourceLoader` fails for jar resources and names with `:` — colon names fixed (test); needs decision: jar resources have no Path
 - [ ] 9.27 **L** `update-container-versions.sh` picks most recently updated tag, not highest — needs decision: real; tag-selection policy
 - [ ] 9.29 **L** `correlation-logging-test-utils` published with no source — needs decision: real; per-module test-utils is a convention — remove or fill
