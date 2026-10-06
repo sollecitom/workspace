@@ -45,14 +45,14 @@ confirms we are done.
 
 ## 7. examples
 
-- [ ] 7.5 **L** `cardAuthWasProcessed` dead — needs decision: real; part of a factory set, deletion is taste
-- [ ] 7.6 **L** Money fields as `double` in test schemas — needs decision: real; modelling
+- [x] 7.5 **L** `cardAuthWasProcessed` dead — needs decision: real; part of a factory set, deletion is taste — decided 2026-10-06: leave it
+- [x] 7.6 **L** Money fields as `double` in test schemas — needs decision: real; modelling — decided 2026-10-06: switch money to the Avro decimal form chosen for acme (bytes, logical type decimal) (to do)
 
 ## 8. facts (unwired)
 
-- [ ] 8.1 **L** `waitForTurn` matches historical events (replay flow) — real; facts is unwired — report only
-- [ ] 8.2 **L** `runBlocking` in projection getter called from suspend code — real; facts is unwired — report only
-- [ ] 8.3 **L** Vacuous `assertThat(true).isTrue()`; stale `.gitmodules` — real; facts is unwired — report only
+- [x] 8.1 **L** `waitForTurn` matches historical events (replay flow) — real; facts is unwired — report only — decided 2026-10-06: fix anyway (to do)
+- [x] 8.2 **L** `runBlocking` in projection getter called from suspend code — real; facts is unwired — report only — decided 2026-10-06: fix anyway (to do)
+- [x] 8.3 **L** Vacuous `assertThat(true).isTrue()`; stale `.gitmodules` — real; facts is unwired — report only — decided 2026-10-06: fix anyway (to do)
 
 ## 9. swissknife
 
