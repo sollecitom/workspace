@@ -90,16 +90,16 @@ confirms we are done.
 - [x] 9.82 **L** `DisallowReservedCharactersInParameterNameRule` misnamed — needs decision: real; public rename — decided 2026-10-06: rename to DisallowReservedCharactersInParameterValuesRule (to do)
 - [x] 9.85 **L** `OpenApiReader.parseContent` doesn't resolve refs — needs decision: no base location for string content — decided 2026-10-06: document it and add an optional base-location parameter, with a test proving relative refs resolve (to do)
 - [ ] 9.86 **L** `LocationBasedOpenApiProvider` re-parses on every access, leaks stream — stream closed; needs decision: caching would share one mutable OpenAPI object
-- [ ] 9.87 **L** `DowngradingOpenApiDefinitionReader` dead and broken — needs decision: real; delete vs fix
-- [ ] 9.88 **L** OpenAPI rules mostly untested; double-slash test URL — double-slash URL fixed; tests added for every changed rule; full per-rule coverage is coverage work
-- [ ] 9.92 **L** `mainHttpApi` unused context parameters — needs decision: real; signature change
-- [ ] 9.93 **L** `InvocationContextFilter` only holds keys — needs decision: real; rename
-- [ ] 9.95 **L** `LocalHttpDrivingAdapterTestSpecification.meterRegistry` new per access — needs decision: interface can't hold per-instance state; abstract breaks consumers
-- [ ] 9.101 **L** Toggle lens rejects values containing `=` — needs decision: `{id}={value}` format ambiguous either way
-- [ ] 9.102 **L** Readiness `runBlocking` has no timeout — needs decision: real; timeout value
+- [x] 9.87 **L** `DowngradingOpenApiDefinitionReader` dead and broken — needs decision: real; delete vs fix — decided 2026-10-06: fix it, with tests (to do)
+- [x] 9.88 **L** OpenAPI rules mostly untested; double-slash test URL — double-slash URL fixed; tests added for every changed rule; full per-rule coverage is coverage work — decided 2026-10-06: add a test per OpenAPI rule (to do)
+- [x] 9.92 **L** `mainHttpApi` unused context parameters — needs decision: real; signature change — decided 2026-10-06: leave the context parameters
+- [x] 9.93 **L** `InvocationContextFilter` only holds keys — needs decision: real; rename — decided 2026-10-06: rename InvocationContextFilter to InvocationContextKeys (to do)
+- [x] 9.95 **L** `LocalHttpDrivingAdapterTestSpecification.meterRegistry` new per access — needs decision: interface can't hold per-instance state; abstract breaks consumers — decided 2026-10-06: leave it
+- [x] 9.101 **L** Toggle lens rejects values containing `=` — needs decision: `{id}={value}` format ambiguous either way — decided 2026-10-06: split the toggle header on the first = (to do)
+- [x] 9.102 **L** Readiness `runBlocking` has no timeout — needs decision: real; timeout value — decided 2026-10-06: add a readiness timeout (e.g. 5s) reporting not ready (to do)
 - [x] 9.103 **H** Pulsar `AvroReader` ignores the writer schema version (schema evolution broken) — uncertain: real, but AvroSchema.clone() shares one reader across per-topic clones, so delegating would mix writer schemas across topics of a multi-topic consumer; needs per-clone readers (design) — fixed 2026-10-06: public-API Pulsar schema decodes with the writer schema version (container test)
-- [ ] 9.104 **H** Pulsar consumers forced to Failover — needs decision: real; consumers rely on Failover ordering
-- [ ] 9.105 **M** Partition-change listener loses events; `runBlocking` on Pulsar thread — needs decision: real; replay/buffer and drop-vs-backpressure
+- [x] 9.104 **H** Pulsar consumers forced to Failover — needs decision: real; consumers rely on Failover ordering — decided 2026-10-06: split the factory: plain consumer respects the subscription type; a separate partition-assignment-aware one forces Failover (to do)
+- [x] 9.105 **M** Partition-change listener loses events; `runBlocking` on Pulsar thread — needs decision: real; replay/buffer and drop-vs-backpressure — decided 2026-10-06: leave it
 - [ ] 9.107 **M** `setAutoTopicCreation` called twice with wrong enum format — needs decision: visible in code; broker behaviour needs a running broker
 - [ ] 9.111 **L** Blocking Pulsar subscribe/create/close in suspend functions; `stop()` connects — needs decision: real; async API redesign
 - [x] 9.113 **L** `MultiVersionGenericAvroReader` would mutate the shared schema once 9.103 is fixed — latent until 9.103 — fixed with 9.103: no shared mutable reader (clone() builds a fresh schema)
