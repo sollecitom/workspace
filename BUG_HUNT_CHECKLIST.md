@@ -18,14 +18,14 @@ confirms we are done.
 
 ## 4. acme-schema-catalogue
 
-- [ ] 4.1 **H** `AccountEvent.avsc` declares record `AccountPlanEvent` — needs decision: rename to AccountEvent (+ alias) is backward- but not forward-compatible, so a FORWARD/FULL registry would reject it (a fix was tried and reverted)
-- [ ] 4.2 **H** `EntityEvent.json` unsatisfiable (broken `allOf` ref, conflicting `additionalProperties`, wrong refs) — needs decision: real; Event.json has additionalProperties:false, so composition needs restructuring; unused
-- [ ] 4.5 **M** `AuthenticatedAccess.json` requires `is-test`; Avro twin has no `is_test` — needs decision: real; add `is_test` to Avro (pillar serde change) or drop from JSON required
-- [ ] 4.6 **L** `EncryptionMetadata` union omits XTS — needs decision: real; adding XTS needs a pillar change, or delete the XTS schema
-- [ ] 4.7 **L** `ServiceAccount.json` flattened vs Avro internal/external union — needs decision: real; modelling choice
-- [ ] 4.8 **L** `CurrencyAmount.json` `units` integer ≥ 0 vs Avro string (negatives) — needs decision: real; modelling choice
-- [ ] 4.10 **L** `Unit.json` only allows the placeholder `"<unit>"` — needs decision: real; fill the enum or delete
-- [ ] 4.11 **L** `PaginationArguments.json` `limit` has no minimum — needs decision: real; minimum 0 or 1 is a product call
+- [x] 4.1 **H** `AccountEvent.avsc` declares record `AccountPlanEvent` — needs decision: rename to AccountEvent (+ alias) is backward- but not forward-compatible, so a FORWARD/FULL registry would reject it (a fix was tried and reverted) — decided 2026-10-06: rename the record to AccountEvent (to do)
+- [x] 4.2 **H** `EntityEvent.json` unsatisfiable (broken `allOf` ref, conflicting `additionalProperties`, wrong refs) — needs decision: real; Event.json has additionalProperties:false, so composition needs restructuring; unused — decided 2026-10-06: delete EntityEvent.json (to do)
+- [x] 4.5 **M** `AuthenticatedAccess.json` requires `is-test`; Avro twin has no `is_test` — needs decision: real; add `is_test` to Avro (pillar serde change) or drop from JSON required — decided 2026-10-06: add is_test to AuthenticatedAccess.avsc and pillar serde (to do)
+- [x] 4.6 **L** `EncryptionMetadata` union omits XTS — needs decision: real; adding XTS needs a pillar change, or delete the XTS schema — decided 2026-10-06: add XTS to the EncryptionMetadata union (to do)
+- [x] 4.7 **L** `ServiceAccount.json` flattened vs Avro internal/external union — needs decision: real; modelling choice — decided 2026-10-06: leave them different: the JSON form only exists for a JavaScript client that cannot use Avro
+- [x] 4.8 **L** `CurrencyAmount.json` `units` integer ≥ 0 vs Avro string (negatives) — needs decision: real; modelling choice — decided 2026-10-06: no negatives; units as a big integer (Avro: non-negative decimal-digit string checked by the serde; JSON: string ^[0-9]+$, JS-safe) (to do)
+- [x] 4.10 **L** `Unit.json` only allows the placeholder `"<unit>"` — needs decision: real; fill the enum or delete — decided 2026-10-06: by design (pillar serialises Kotlin Unit as "<unit>")
+- [x] 4.11 **L** `PaginationArguments.json` `limit` has no minimum — needs decision: real; minimum 0 or 1 is a product call — decided 2026-10-06: minimum 1 (to do)
 - [ ] 4.12 **L** `envelope_type` free string, not tied to the union branch — needs decision: real; modelling choice
 
 ## 5. tools
@@ -132,7 +132,7 @@ confirms we are done.
 - [x] 11.6 **L** Payment module test asserts status only — needs decision: real; right expectation depends on 11.1 — left to the owner with 11.1 (same piece of work)
 - [x] 11.8 **H** account-event-processor handlers all TODO (unwired); README says Done — needs decision: real; README section left as is — left to the owner with 11.1 (same piece of work)
 - [x] 11.10 **M** No positive-amount check on payments/deposits — needs decision: real; domain rule — left to the owner with 11.1 (same piece of work)
-- [ ] 11.11 **L** `AccountEvent.avsc` wrong record name (see 4.1) — needs decision: see 4.1
+- [x] 11.11 **L** `AccountEvent.avsc` wrong record name (see 4.1) — needs decision: see 4.1 — decided 2026-10-06: with 4.1 (to do)
 - [ ] 11.12 **L** Publisher log says "compliance plan event" and leaks amounts — log text fixed; needs decision: logging full events at INFO
 - [ ] 11.16 **L** Random node name; `INSTANCE_*` env vars never read — needs decision: real; instance identity
 - [ ] 11.18 **L** Registry auth lookup result discarded — needs decision: real; delete or wire Docker auth
