@@ -241,7 +241,7 @@ fetch_matching_tags() {
     local next_url
 
     repo_path=$(docker_hub_repository_path "$repository")
-    next_url="https://hub.docker.com/v2/repositories/${repo_path}/tags?page_size=100"
+    next_url="https://hub.docker.com/v2/repositories/${repo_path}/tags?page_size=100&name=${variant}"
 
     while [ -n "$next_url" ]; do
         local response
