@@ -100,17 +100,17 @@ confirms we are done.
 - [x] 9.103 **H** Pulsar `AvroReader` ignores the writer schema version (schema evolution broken) — uncertain: real, but AvroSchema.clone() shares one reader across per-topic clones, so delegating would mix writer schemas across topics of a multi-topic consumer; needs per-clone readers (design) — fixed 2026-10-06: public-API Pulsar schema decodes with the writer schema version (container test)
 - [x] 9.104 **H** Pulsar consumers forced to Failover — needs decision: real; consumers rely on Failover ordering — decided 2026-10-06: split the factory: plain consumer respects the subscription type; a separate partition-assignment-aware one forces Failover (to do)
 - [x] 9.105 **M** Partition-change listener loses events; `runBlocking` on Pulsar thread — needs decision: real; replay/buffer and drop-vs-backpressure — decided 2026-10-06: leave it
-- [ ] 9.107 **M** `setAutoTopicCreation` called twice with wrong enum format — needs decision: visible in code; broker behaviour needs a running broker
-- [ ] 9.111 **L** Blocking Pulsar subscribe/create/close in suspend functions; `stop()` connects — needs decision: real; async API redesign
+- [x] 9.107 **M** `setAutoTopicCreation` called twice with wrong enum format — needs decision: visible in code; broker behaviour needs a running broker — decided 2026-10-06: call setAutoTopicCreation once with the intended topic type, verified by a container test (to do)
+- [x] 9.111 **L** Blocking Pulsar subscribe/create/close in suspend functions; `stop()` connects — needs decision: real; async API redesign — decided 2026-10-06: switch to the async Pulsar API, close only what was opened (to do)
 - [x] 9.113 **L** `MultiVersionGenericAvroReader` would mutate the shared schema once 9.103 is fixed — latent until 9.103 — fixed with 9.103: no shared mutable reader (clone() builds a fresh schema)
-- [ ] 9.116 **M** `MessagingTestSpecification` unimplemented; no Pulsar tests — needs decision: test build-out
-- [ ] 9.117 **L** `produceAndAwaitSuccessor` drops non-matching messages — needs decision: real; nacking loops in tests
+- [x] 9.116 **M** `MessagingTestSpecification` unimplemented; no Pulsar tests — needs decision: test build-out — decided 2026-10-06: implement MessagingTestSpecification against a Pulsar container (to do)
+- [x] 9.117 **L** `produceAndAwaitSuccessor` drops non-matching messages — needs decision: real; nacking loops in tests — decided 2026-10-06: keep the behaviour, rename to produceAndSkipToSuccessor with a KDoc line about skipped messages (to do)
 - [ ] 9.119 **L** `toOutboundMessage(value, parent)` creates a sibling — needs decision: semantics
-- [ ] 9.120 **L** Namespace-less topics don't round-trip — needs decision: topic model
-- [ ] 9.122 **M** NATS no flush after subscribe — needs decision: real; flush timeout/failure policy — applied 2026-10-06 to fix a flaky test: flush with a 10s timeout after subscribing, failure propagates; **confirm**
-- [ ] 9.128 **L** JSON `getInt`/`getLong` narrow silently — needs decision: real; null vs throw for fractions/overflow
-- [ ] 9.131 **L** JSON checker rules only inspect top level — needs decision: stricter rules, nested path reporting
-- [ ] 9.133 **M** MDC in `InheritableThreadLocal` leaks into pool threads — needs decision: MDC propagation semantics
+- [x] 9.120 **L** Namespace-less topics don't round-trip — needs decision: topic model — decided 2026-10-06: default to public/default explicitly (to do)
+- [x] 9.122 **M** NATS no flush after subscribe — needs decision: real; flush timeout/failure policy — applied 2026-10-06 to fix a flaky test: flush with a 10s timeout after subscribing, failure propagates; **confirm** — confirmed 2026-10-06: keep the flush; the timeout comes from configuration as a Kotlin Duration, default 10s (to do)
+- [x] 9.128 **L** JSON `getInt`/`getLong` narrow silently — needs decision: real; null vs throw for fractions/overflow — decided 2026-10-06: throw on overflow or fractions (to do)
+- [x] 9.131 **L** JSON checker rules only inspect top level — needs decision: stricter rules, nested path reporting — decided 2026-10-06: check nested properties, reporting the path (to do)
+- [x] 9.133 **M** MDC in `InheritableThreadLocal` leaks into pool threads — needs decision: MDC propagation semantics — decided 2026-10-06: plain ThreadLocal for the MDC (to do)
 - [ ] 9.135 **L** Logger level prefix matching per character, not per package segment — needs decision: `.` vs `.`/`$` boundary
 - [ ] 9.136 **L** JSON log formatter drops null `message`; schema property names disagree — needs decision: empty string vs schema relaxation; renaming changes validation
 - [ ] 9.137 **L** Logging level overrides not trimmed/uppercased; replace defaults instead of merging — needs decision: merge vs replace
