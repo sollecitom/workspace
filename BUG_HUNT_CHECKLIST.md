@@ -12,14 +12,9 @@ confirms we are done.
 *record* the decision here and mark it "(to do)" — the actual changes are made later, all together, then
 `build-workspace` + commit.
 
-**Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, and swissknife up to batch 10.
+**Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, swissknife.
 
-**Next:** swissknife batch 11 (logging and OpenTelemetry, 4 items, presented but not yet answered):
-1. 9.135 logger level overrides match by character prefix, not package segment (rec: match whole segments);
-2. 9.136 JSON log formatter drops a null message, property names differ from the schema (rec: empty string + align names);
-3. 9.137 level overrides not trimmed/upper-cased, replace defaults instead of merging (rec: trim, upper-case, merge);
-4. 9.139 OpenTelemetry module registered globally, never shut down (rec: add stop() that flushes, called from services).
-Then pillar (10.x), modulith (11.x) and element (12.x) open items, then the remaining N items.
+**Next:** pillar (10.x) open items, then modulith (11.x), element (12.x), and the remaining N items.
 
 **Then the actual work:** implement every "(to do)" decision, then `just build-workspace` until green, commit.
 
@@ -137,10 +132,10 @@ public-API code works there) and tell the owner. element and modulith haven't be
 - [x] 9.128 **L** JSON `getInt`/`getLong` narrow silently — needs decision: real; null vs throw for fractions/overflow — decided 2026-10-06: throw on overflow or fractions (to do)
 - [x] 9.131 **L** JSON checker rules only inspect top level — needs decision: stricter rules, nested path reporting — decided 2026-10-06: check nested properties, reporting the path (to do)
 - [x] 9.133 **M** MDC in `InheritableThreadLocal` leaks into pool threads — needs decision: MDC propagation semantics — decided 2026-10-06: plain ThreadLocal for the MDC (to do)
-- [ ] 9.135 **L** Logger level prefix matching per character, not per package segment — needs decision: `.` vs `.`/`$` boundary
-- [ ] 9.136 **L** JSON log formatter drops null `message`; schema property names disagree — needs decision: empty string vs schema relaxation; renaming changes validation
-- [ ] 9.137 **L** Logging level overrides not trimmed/uppercased; replace defaults instead of merging — needs decision: merge vs replace
-- [ ] 9.139 **M** OpenTelemetry module registers global, per-span export, never shut down — needs decision: lifecycle design
+- [x] 9.135 **L** Logger level prefix matching per character, not per package segment — needs decision: `.` vs `.`/`$` boundary — decided 2026-10-06: match whole package segments (to do)
+- [x] 9.136 **L** JSON log formatter drops null `message`; schema property names disagree — needs decision: empty string vs schema relaxation; renaming changes validation — decided 2026-10-06: write an empty string for a null message and align property names with the schema (to do)
+- [x] 9.137 **L** Logging level overrides not trimmed/uppercased; replace defaults instead of merging — needs decision: merge vs replace — decided 2026-10-06: trim, upper-case and merge with the defaults, configuration winning (to do)
+- [x] 9.139 **M** OpenTelemetry module registers global, per-span export, never shut down — needs decision: lifecycle design — decided 2026-10-06: add stop() that flushes and shuts down the SDK, called from the services stop (to do)
 
 ## 10. pillar
 
