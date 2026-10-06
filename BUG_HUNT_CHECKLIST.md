@@ -30,10 +30,10 @@ confirms we are done.
 
 ## 5. tools
 
-- [ ] 5.2 **H** package-migrator text/path replacement has no identifier/segment boundaries — needs decision: real; whole-name matching changes the template-cloning use case and text/path matching must agree
-- [ ] 5.3 **M** package-migrator targets the working directory; README stale — needs decision: real; CLI design
-- [ ] 5.5 **M** package-migrator moves excluded directories but doesn't rewrite them — uncertain: real, suggested filter insufficient; how narrow the excluded-folder rule should be is a design choice
-- [ ] 5.9 **L** license-audit self-check tests paths production never uses — needs decision: real; test strategy (new self-checks do cover the real path)
+- [x] 5.2 **H** package-migrator text/path replacement has no identifier/segment boundaries — needs decision: real; whole-name matching changes the template-cloning use case and text/path matching must agree — decided 2026-10-06: match whole package segments only, the same for text and paths (to do)
+- [x] 5.3 **M** package-migrator targets the working directory; README stale — needs decision: real; CLI design — decided 2026-10-06: add --project <dir> (default: working directory) and fix the README (to do)
+- [x] 5.5 **M** package-migrator moves excluded directories but doesn't rewrite them — uncertain: real, suggested filter insufficient; how narrow the excluded-folder rule should be is a design choice — decided 2026-10-06: never move excluded directories (build, .git, .kotlin, gradle; also add .gradle and .idea) (to do)
+- [x] 5.9 **L** license-audit self-check tests paths production never uses — needs decision: real; test strategy (new self-checks do cover the real path) — decided 2026-10-06: closed: the JUnit tests cover the real path
 
 ## 6. quality-scorer
 
@@ -181,7 +181,7 @@ confirms we are done.
 
 ## New (from the redo and the 2026-10-06 review)
 
-- [ ] N.1 **L** package-migrator: migrating `a.b` → `a.b.v2` still fails in the directory phase (moves a directory into itself)
+- [x] N.1 **L** package-migrator: migrating `a.b` → `a.b.v2` still fails in the directory phase (moves a directory into itself) — decided 2026-10-06: move through a temporary location, with a test (to do)
 - [ ] N.2 **H** Pulsar 5: swissknife now uses only public Pulsar APIs (works on 4.2.4 and 5.0.0), but 5.0.0 is blocked by slog 0.10.0 (picks Log4j2 when log4j-api is present, then needs log4j-core; our services carry log4j-to-slf4j for Yauaa). Client pinned at 4.2.4. **Agreed next (when the owner is back):** drop the unused `web-client-info-analyzer` dependency from swissknife `web-api-utils`, move pillar's gateway stub (`GatewayHttpFilter`, `GatewayInvocationContextFilter`, `GATEWAY.md`) and its Yauaa dependency into its own pillar module, confirm `log4j-api` is gone from the services, then retry Pulsar 5; first run `build-workspace` (last changes unverified)
 - [ ] N.4 **H** Evolving topics with new event types (decided 2026-10-06, to do): (1) swissknife namespace compatibility default `BACKWARD_TRANSITIVE` (FULL_TRANSITIVE rejects new union branches); (2) lint rule: a topic's value schema reaches its events through a union; (3) pillar's processor checks the event-type header before decoding and acks unhandled types without deserialising them (handlers declare the types they handle), tested with an undecodable payload of an unhandled type
-- [ ] N.3 **L** Readability leftovers: one failure-injection style in the two `CompliancePlanEventProcessingTests`; Pulsar client closing style in the outputs-manager module spec; package-migrator relative-path helper
+- [x] N.3 **L** Readability leftovers: one failure-injection style in the two `CompliancePlanEventProcessingTests`; Pulsar client closing style in the outputs-manager module spec; package-migrator relative-path helper — decided 2026-10-06: tidy all three (to do)
