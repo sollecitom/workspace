@@ -89,7 +89,7 @@ confirms we are done.
 - [x] 9.81 **L** `LowercasePathNameRule` flags template variables — needs decision: style choice for template variables — decided 2026-10-06: ignore path template variables (to do)
 - [x] 9.82 **L** `DisallowReservedCharactersInParameterNameRule` misnamed — needs decision: real; public rename — decided 2026-10-06: rename to DisallowReservedCharactersInParameterValuesRule (to do)
 - [x] 9.85 **L** `OpenApiReader.parseContent` doesn't resolve refs — needs decision: no base location for string content — decided 2026-10-06: document it and add an optional base-location parameter, with a test proving relative refs resolve (to do)
-- [ ] 9.86 **L** `LocationBasedOpenApiProvider` re-parses on every access, leaks stream — stream closed; needs decision: caching would share one mutable OpenAPI object
+- [x] 9.86 **L** `LocationBasedOpenApiProvider` re-parses on every access, leaks stream — stream closed; needs decision: caching would share one mutable OpenAPI object — decided 2026-10-06: leave it (no repeated reads today)
 - [x] 9.87 **L** `DowngradingOpenApiDefinitionReader` dead and broken — needs decision: real; delete vs fix — decided 2026-10-06: fix it, with tests (to do)
 - [x] 9.88 **L** OpenAPI rules mostly untested; double-slash test URL — double-slash URL fixed; tests added for every changed rule; full per-rule coverage is coverage work — decided 2026-10-06: add a test per OpenAPI rule (to do)
 - [x] 9.92 **L** `mainHttpApi` unused context parameters — needs decision: real; signature change — decided 2026-10-06: leave the context parameters
