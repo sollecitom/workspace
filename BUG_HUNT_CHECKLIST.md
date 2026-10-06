@@ -78,13 +78,13 @@ confirms we are done.
 - [ ] 9.40 **M** `access(context)` ignores the context; README claims access control — needs decision: real; access-control design
 - [ ] 9.47 **L** `JWT.isValidAtTime` ignores `nbf` — needs decision: KDoc defines it as not-expired and pillar relies on that; add nbf (contract change), rename, or fix KDoc
 - [ ] 9.53 **L** Stale `.trivyignore` check uses severity-filtered scan — needs decision: real; scan-all vs reword
-- [ ] 9.55 **H** Custom Liquibase lock: check-then-act race lets two pods migrate — needs decision: real; lock-service redesign
-- [ ] 9.56 **M** Lock liveness uses zone-less `backend_start` strings; SQL interpolation — needs decision: real; lock-service redesign
+- [x] 9.55 **H** Custom Liquibase lock: check-then-act race lets two pods migrate — needs decision: real; lock-service redesign — decided 2026-10-06: replaced by a Postgres session advisory lock (`PostgresAdvisoryLockService`), Testcontainers tests
+- [x] 9.56 **M** Lock liveness uses zone-less `backend_start` strings; SQL interpolation — needs decision: real; lock-service redesign — gone with 9.55 (no session strings, no interpolated SQL)
 - [ ] 9.57 **M** `bindValueOrNull` binds every null as VARCHAR — needs decision: real; null-typing API
 - [ ] 9.59 **L** `PostgresContainer` `rootUser = true` connects as nonexistent `root` — needs decision: real; remove parameter (API) or no-op
 - [ ] 9.62 **L** `LiquibaseDatabaseMigrator` lazy connection: wrong dispatcher, `stop()` connects, second run fails — needs decision: real; lifecycle redesign
 - [ ] 9.63 **L** `SqlEntityFilter` count and page from different snapshots — needs decision: real; isolation choice
-- [ ] 9.64 **L** No tests for lock service, pagination, binding helpers — first sql tests added (binding, parsing, readiness); lock/pagination tests wait on 9.55/9.56/9.63
+- [ ] 9.64 **L** No tests for lock service, pagination, binding helpers — first sql tests added (binding, parsing, readiness); lock tests added with 9.55; pagination tests wait on 9.63
 - [ ] 9.77 **L** Response validation throws for `PURGE`/`QUERY` — needs decision: finding wrong about requests (they throw too); PURGE/QUERY aren't OpenAPI methods — throw vs report
 - [ ] 9.81 **L** `LowercasePathNameRule` flags template variables — needs decision: style choice for template variables
 - [ ] 9.82 **L** `DisallowReservedCharactersInParameterNameRule` misnamed — needs decision: real; public rename
