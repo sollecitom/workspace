@@ -154,7 +154,7 @@ confirms we are done.
 - [ ] 12.18 **L** Requirement `Standard`/`Clause` `compareTo` inconsistent with `equals` — needs decision: real
 - [ ] 12.20 **L** `Market`/SDO accept any name; Avro enums are closed — needs decision: real
 - [ ] 12.31 **L** Uncommitted `.trivyignore` change (also modulith) pending a security-scan run — untouched as instructed
-- [ ] 12.34 **H** Re-storing requirements resets applicability decisions — needs decision: real; applicability semantics after re-analysis
+- [x] 12.34 **H** Re-storing requirements resets applicability decisions — needs decision: real; applicability semantics after re-analysis — decided 2026-10-06: keep the current behaviour (any re-store resets applicability decisions)
 - [ ] 12.37 **M** `limit` 0/negative/unbounded — uncertain: real; max limit and validation location are choices
 - [ ] 12.38 **M** Plan upsert has no version guard — needs decision: real; versioning scheme
 - [ ] 12.46 **H** CSV fields never quoted/escaped (formula injection, corrupt rows) — RFC-4180 quoting/escaping fixed (new CSVRow, tests); needs decision: spreadsheet formula prefixing alters data
@@ -162,7 +162,7 @@ confirms we are done.
 - [ ] 12.48 **M** Writes before publish not transactional — needs decision: real; transaction boundary
 - [ ] 12.49 **L** CSV dates depend on JVM locale — needs decision: real; date format
 - [ ] 12.50 **L** CSV has no BOM — needs decision: real; BOM
-- [ ] 12.55 **L** Repository spec missing re-store/empty/null-edition cases — empty-set and null-edition cases added; re-store-keeps-applicability depends on 12.34
+- [x] 12.55 **L** Repository spec missing re-store/empty/null-edition cases — empty-set and null-edition cases added; re-store-keeps-applicability depends on 12.34 — remaining case dropped with the 12.34 decision
 - [ ] 12.57 **L** "Nonexistent plan" test uses a stub that always returns a plan — misleading name fixed; a real missing-plan test depends on 12.47
 - [x] 12.60 **H** Ingestion only checks "authenticated" (no role/customer check) — needs decision: real; authorisation — decided 2026-10-06: the gateway restricts event endpoints to allowed machine clients (GATEWAY.md); services trust them
 - [ ] 12.63 **M** No idempotency on ingestion — needs decision: real; idempotency
