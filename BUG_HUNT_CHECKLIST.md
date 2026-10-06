@@ -164,7 +164,7 @@ confirms we are done.
 - [ ] 12.50 **L** CSV has no BOM — needs decision: real; BOM
 - [ ] 12.55 **L** Repository spec missing re-store/empty/null-edition cases — empty-set and null-edition cases added; re-store-keeps-applicability depends on 12.34
 - [ ] 12.57 **L** "Nonexistent plan" test uses a stub that always returns a plan — misleading name fixed; a real missing-plan test depends on 12.47
-- [ ] 12.60 **H** Ingestion only checks "authenticated" (no role/customer check) — needs decision: real; authorisation
+- [x] 12.60 **H** Ingestion only checks "authenticated" (no role/customer check) — needs decision: real; authorisation — decided 2026-10-06: the gateway restricts event endpoints to allowed machine clients (GATEWAY.md); services trust them
 - [ ] 12.63 **M** No idempotency on ingestion — needs decision: real; idempotency
 - [ ] 12.64 **L** Always 200, even on `ApplicationResult.Error` — needs decision: real; status for a currently unreachable Error
 - [ ] 12.66 **H** Notifier serde writes fields its schema forbids; untested — needs decision: real; unclear whether the serde shape or the flat email-contract schema is intended
