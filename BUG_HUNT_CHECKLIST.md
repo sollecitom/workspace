@@ -41,7 +41,7 @@ confirms we are done.
 - [x] 6.2 **M** Missing/unparsable `--coverage` silently scores 0 — needs decision: real; fail vs warn is grading policy — decided 2026-10-06 (paused stub, recommendations): fail clearly when a given coverage path cannot be read (to do)
 - [x] 6.5 **L** `productionFunctions` includes helpers in test sources — needs decision: real; scoring semantics — decided 2026-10-06 (paused stub, recommendations): count only functions in main source sets (to do)
 - [x] 6.6 **L** Walk includes `build/`/`.gradle/`; `isTestPath` misses `testFixtures`/`integrationTest` — needs decision: real; scoring semantics — decided 2026-10-06 (paused stub, recommendations): skip build directories; any src/*test* is test code (to do)
-- [x] 6.8 **L** `SourceLocation` dead — needs decision: real; removing a field from Finding is a contract change — decided 2026-10-06 (paused stub, recommendations): delete SourceLocation (to do)
+- [x] 6.8 **L** `SourceLocation` dead — needs decision: real; removing a field from Finding is a contract change — decided 2026-10-06 (paused stub, recommendations): leave SourceLocation (owner, 2026-10-06)
 
 ## 7. examples
 
