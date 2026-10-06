@@ -18,9 +18,6 @@ Make `just refresh-workspace` cheap when nothing meaningful changed by relying p
   - [ ] 4.2 Fix the highest-value custom plugin/convention issues in `gradle-plugins`.
   - [ ] 4.3 Decide what remains accepted third-party noise versus what should actually be fixed.
   - [ ] 4.4 Clean up the `kotlin-dsl` / Kotlin-version mismatch in `gradle-plugins` if you no longer want that warning accepted as noise.
-- [ ] 5. Aggregator
-  - [ ] 5.1 Run a real smoke test in `aggregator`, at least `just projects`.
-  - [ ] 5.2 Optionally run `just build` there once to confirm the composite workbench behaves as expected.
 
 ## Accepted Decisions
 

@@ -4,11 +4,11 @@
 
 Personal multi-project Kotlin/JVM workspace. Each project is its own git repo in a subdirectory of this workspace repo (ignored by its `.gitignore`), managed together via a root `justfile`.
 
-Normal repos now consume internal libraries and conventions by explicit published version from `mavenLocal()`. Composite `includeBuild(...)` is no longer the normal workspace path; a future separate aggregator repo may still use it for cross-repo development.
+Normal repos now consume internal libraries and conventions by explicit published version from `mavenLocal()`. Composite `includeBuild(...)` is not used.
 
 Container image handling currently has two paths:
 
-- shared Docker base image updates flow through repo `gradle.properties` and, where present, `Dockerfile`
+- shared Docker base image updates flow through repo `gradle.properties`
 - repo-local container version automation is currently only present in `swissknife` via `container-versions.properties` and `scripts/update-container-versions.sh`
 
 ## Dependency Graph
@@ -27,7 +27,7 @@ tools / examples / modulith-example / element-service-example / quality-scorer
 ```
 
 `facts` is still on disk but **unwired** from the workspace flows — an abandoned exploration, superseded
-by `lattice`. `aggregator` is likewise outside the module lists.
+by `lattice`.
 
 Published internal versions are discovered locally through `mavenLocal()`. Workspace flows now distinguish between:
 
