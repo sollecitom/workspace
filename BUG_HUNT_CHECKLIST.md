@@ -37,11 +37,11 @@ confirms we are done.
 
 ## 6. quality-scorer
 
-- [ ] 6.1 **H** `--project` not validated: empty/missing project scores 0.65 — non-directory `--project` now exits 2; needs decision: an empty directory still scores 0.65 (usage error vs score 0)
-- [ ] 6.2 **M** Missing/unparsable `--coverage` silently scores 0 — needs decision: real; fail vs warn is grading policy
-- [ ] 6.5 **L** `productionFunctions` includes helpers in test sources — needs decision: real; scoring semantics
-- [ ] 6.6 **L** Walk includes `build/`/`.gradle/`; `isTestPath` misses `testFixtures`/`integrationTest` — needs decision: real; scoring semantics
-- [ ] 6.8 **L** `SourceLocation` dead — needs decision: real; removing a field from Finding is a contract change
+- [x] 6.1 **H** `--project` not validated: empty/missing project scores 0.65 — non-directory `--project` now exits 2; needs decision: an empty directory still scores 0.65 (usage error vs score 0) — decided 2026-10-06 (paused stub, recommendations): no Kotlin files is a usage error (exit 2) (to do)
+- [x] 6.2 **M** Missing/unparsable `--coverage` silently scores 0 — needs decision: real; fail vs warn is grading policy — decided 2026-10-06 (paused stub, recommendations): fail clearly when a given coverage path cannot be read (to do)
+- [x] 6.5 **L** `productionFunctions` includes helpers in test sources — needs decision: real; scoring semantics — decided 2026-10-06 (paused stub, recommendations): count only functions in main source sets (to do)
+- [x] 6.6 **L** Walk includes `build/`/`.gradle/`; `isTestPath` misses `testFixtures`/`integrationTest` — needs decision: real; scoring semantics — decided 2026-10-06 (paused stub, recommendations): skip build directories; any src/*test* is test code (to do)
+- [x] 6.8 **L** `SourceLocation` dead — needs decision: real; removing a field from Finding is a contract change — decided 2026-10-06 (paused stub, recommendations): delete SourceLocation (to do)
 
 ## 7. examples
 
