@@ -105,7 +105,7 @@ confirms we are done.
 - [x] 9.113 **L** `MultiVersionGenericAvroReader` would mutate the shared schema once 9.103 is fixed — latent until 9.103 — fixed with 9.103: no shared mutable reader (clone() builds a fresh schema)
 - [x] 9.116 **M** `MessagingTestSpecification` unimplemented; no Pulsar tests — needs decision: test build-out — decided 2026-10-06: implement MessagingTestSpecification against a Pulsar container (to do)
 - [x] 9.117 **L** `produceAndAwaitSuccessor` drops non-matching messages — needs decision: real; nacking loops in tests — decided 2026-10-06: keep the behaviour, rename to produceAndSkipToSuccessor with a KDoc line about skipped messages (to do)
-- [ ] 9.119 **L** `toOutboundMessage(value, parent)` creates a sibling — needs decision: semantics
+- [x] 9.119 **L** `toOutboundMessage(value, parent)` creates a sibling — needs decision: semantics — decided 2026-10-06: delete the sibling overload toOutboundMessage(value, parentMessage) (to do)
 - [x] 9.120 **L** Namespace-less topics don't round-trip — needs decision: topic model — decided 2026-10-06: default to public/default explicitly (to do)
 - [x] 9.122 **M** NATS no flush after subscribe — needs decision: real; flush timeout/failure policy — applied 2026-10-06 to fix a flaky test: flush with a 10s timeout after subscribing, failure propagates; **confirm** — confirmed 2026-10-06: keep the flush; the timeout comes from configuration as a Kotlin Duration, default 10s (to do)
 - [x] 9.128 **L** JSON `getInt`/`getLong` narrow silently — needs decision: real; null vs throw for fractions/overflow — decided 2026-10-06: throw on overflow or fractions (to do)
