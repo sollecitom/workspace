@@ -5,6 +5,32 @@ Items still open after the 2026-10-06 redo. Full write-ups (file:line, scenario,
 We go through them one at a time; an item is ticked when decided (and fixed if needed). This file stays until the owner
 confirms we are done.
 
+## Where we are (saved 2026-10-06, before a laptop restart)
+
+**How we work through this list** (owner's rules): one repo at a time, up to 10 items per batch; items numbered 1, 2, 3…
+(no checklist ids in the presentation); short options numbered 1, 2, 3 with a recommendation; when the owner decides,
+*record* the decision here and mark it "(to do)" — the actual changes are made later, all together, then
+`build-workspace` + commit.
+
+**Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, and swissknife up to batch 10.
+
+**Next:** swissknife batch 11 (logging and OpenTelemetry, 4 items, presented but not yet answered):
+1. 9.135 logger level overrides match by character prefix, not package segment (rec: match whole segments);
+2. 9.136 JSON log formatter drops a null message, property names differ from the schema (rec: empty string + align names);
+3. 9.137 level overrides not trimmed/upper-cased, replace defaults instead of merging (rec: trim, upper-case, merge);
+4. 9.139 OpenTelemetry module registered globally, never shut down (rec: add stop() that flushes, called from services).
+Then pillar (10.x), modulith (11.x) and element (12.x) open items, then the remaining N items.
+
+**Then the actual work:** implement every "(to do)" decision, then `just build-workspace` until green, commit.
+
+**Open technical thread — N.2 Pulsar 5:** swissknife is on Pulsar 5.0.0 with only public APIs; the Yauaa/log4j path is
+gone from the services (web-api-utils no longer depends on the client-info analyser; pillar's gateway stub moved to
+module `web-api-gateway`). The last `build-workspace` passed gradle-plugins, acme, swissknife, pillar, lattice and tools,
+then **examples' Pulsar tests hung until the 2-minute default timeout** (send/receive with Avro, wrapper types, message
+converter), with no broker errors. Suspects: ack receipts (now enabled), consumers' `startPaused(true)`, or how Pulsar
+5's client drives our public-API `Schema`. Investigate; if it's a Pulsar 5 behaviour change, pin back to 4.2.4 (the
+public-API code works there) and tell the owner. element and modulith haven't been built against these changes yet.
+
 
 ## 1. Workspace root (scripts, justfile, docs, policy)
 
