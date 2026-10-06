@@ -77,18 +77,18 @@ confirms we are done.
 - [x] 9.39 **M** Protected value `name`/`owner` not bound as AAD — needs decision: real; changes ciphertext format — decided 2026-10-06: bind the owner (not the name) as associated data (to do)
 - [x] 9.40 **M** `access(context)` ignores the context; README claims access control — needs decision: real; access-control design — decided 2026-10-06: access takes a required closure called before decrypting, with the access context and the value (name, owner, metadata): it records who accessed what and when, and may refuse by throwing; test factories pass a default that logs timestamp, field name, owner and accessor; pillar provides the standard audit-log hook (to do)
 - [x] 9.47 **L** `JWT.isValidAtTime` ignores `nbf` — needs decision: KDoc defines it as not-expired and pillar relies on that; add nbf (contract change), rename, or fix KDoc — decided 2026-10-06: isValidAtTime also checks nbf, and add isNotExpiredAt (to do)
-- [ ] 9.53 **L** Stale `.trivyignore` check uses severity-filtered scan — needs decision: real; scan-all vs reword
+- [x] 9.53 **L** Stale `.trivyignore` check uses severity-filtered scan — needs decision: real; scan-all vs reword — decided 2026-10-06: run the stale-ignore check at all severities (to do)
 - [x] 9.55 **H** Custom Liquibase lock: check-then-act race lets two pods migrate — needs decision: real; lock-service redesign — decided 2026-10-06: replaced by a Postgres session advisory lock (`PostgresAdvisoryLockService`), Testcontainers tests
 - [x] 9.56 **M** Lock liveness uses zone-less `backend_start` strings; SQL interpolation — needs decision: real; lock-service redesign — gone with 9.55 (no session strings, no interpolated SQL)
-- [ ] 9.57 **M** `bindValueOrNull` binds every null as VARCHAR — needs decision: real; null-typing API
+- [x] 9.57 **M** `bindValueOrNull` binds every null as VARCHAR — needs decision: real; null-typing API — decided 2026-10-06: bindValueOrNull takes the column type for nulls (to do)
 - [ ] 9.59 **L** `PostgresContainer` `rootUser = true` connects as nonexistent `root` — needs decision: real; remove parameter (API) or no-op
-- [ ] 9.62 **L** `LiquibaseDatabaseMigrator` lazy connection: wrong dispatcher, `stop()` connects, second run fails — needs decision: real; lifecycle redesign
-- [ ] 9.63 **L** `SqlEntityFilter` count and page from different snapshots — needs decision: real; isolation choice
-- [ ] 9.64 **L** No tests for lock service, pagination, binding helpers — first sql tests added (binding, parsing, readiness); lock tests added with 9.55; pagination tests wait on 9.63
-- [ ] 9.77 **L** Response validation throws for `PURGE`/`QUERY` — needs decision: finding wrong about requests (they throw too); PURGE/QUERY aren't OpenAPI methods — throw vs report
-- [ ] 9.81 **L** `LowercasePathNameRule` flags template variables — needs decision: style choice for template variables
-- [ ] 9.82 **L** `DisallowReservedCharactersInParameterNameRule` misnamed — needs decision: real; public rename
-- [ ] 9.85 **L** `OpenApiReader.parseContent` doesn't resolve refs — needs decision: no base location for string content
+- [x] 9.62 **L** `LiquibaseDatabaseMigrator` lazy connection: wrong dispatcher, `stop()` connects, second run fails — needs decision: real; lifecycle redesign — decided 2026-10-06: fix the lifecycle: connect in start on an I/O dispatcher, close only if open, allow reuse (to do)
+- [x] 9.63 **L** `SqlEntityFilter` count and page from different snapshots — needs decision: real; isolation choice — decided 2026-10-06: read count and page in one read-only repeatable-read transaction (to do)
+- [x] 9.64 **L** No tests for lock service, pagination, binding helpers — first sql tests added (binding, parsing, readiness); lock tests added with 9.55; pagination tests wait on 9.63 — decided 2026-10-06: pagination tests with 9.63 (to do)
+- [x] 9.77 **L** Response validation throws for `PURGE`/`QUERY` — needs decision: finding wrong about requests (they throw too); PURGE/QUERY aren't OpenAPI methods — throw vs report — decided 2026-10-06: closed: PURGE/QUERY are not OpenAPI methods
+- [x] 9.81 **L** `LowercasePathNameRule` flags template variables — needs decision: style choice for template variables — decided 2026-10-06: ignore path template variables (to do)
+- [x] 9.82 **L** `DisallowReservedCharactersInParameterNameRule` misnamed — needs decision: real; public rename — decided 2026-10-06: rename to DisallowReservedCharactersInParameterValuesRule (to do)
+- [x] 9.85 **L** `OpenApiReader.parseContent` doesn't resolve refs — needs decision: no base location for string content — decided 2026-10-06: document it and add an optional base-location parameter, with a test proving relative refs resolve (to do)
 - [ ] 9.86 **L** `LocationBasedOpenApiProvider` re-parses on every access, leaks stream — stream closed; needs decision: caching would share one mutable OpenAPI object
 - [ ] 9.87 **L** `DowngradingOpenApiDefinitionReader` dead and broken — needs decision: real; delete vs fix
 - [ ] 9.88 **L** OpenAPI rules mostly untested; double-slash test URL — double-slash URL fixed; tests added for every changed rule; full per-rule coverage is coverage work
