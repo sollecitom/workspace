@@ -18,6 +18,8 @@
 - Undecodable payloads: default reaction is exitProcess(1) (on a separate thread, after one ERROR log, consumption stopped, never acked). It's a library default in pillar; services can pass their own onUndecodableMessage. OK as the default, or should the service own it explicitly (no default)?
 - "Handled" event types are matched by NAME: an unknown version of a handled name is not acked; it reaches the handler, whose type lookup fails, so it retries in place and halts loudly. Confirm.
 - swissknife id predictability (review finding): untouched, awaiting your call (options given).
+- A custom onUndecodableMessage gets no processor log line (only ProcessHalter logs). Fine for tests; a production override must log itself.
+- With a configured seed (tests), random and secureRandom share one seeded instance: deterministic single-threaded, but draws from one affect the other.
 
 ## Worth mentioning
 - element: every to-do done; 2-container test and both image scans green. 12.38 verified (plan events keyed by plan id, Failover subscription): no version guard needed.
@@ -45,14 +47,14 @@
 - Structure pass: acme 1.0.11 (PaginationArguments maximum 100); swissknife 1.0.51/1.0.52: JSON body lenses validate against schema-aware serdes (400 on mismatch; modulith gets it automatically), createPooledR2dbcClient + DatabaseClient.close(), ImageSecurityScanTestSpecification (scan tests are one-liners); pillar 1.0.29: toCustomerScoped next to toAuthenticated; element: local helpers and BoundedPaginationArguments.json deleted, probe initial delays removed (startupProbe gates them), known Market/SDO codes in one private enum, N.3 test tidy-ups.
 
 ## Decisions from the 2026-10-07 discussion (to do unless noted)
-- Undecodable default: keep ERROR + exit, but template it: one reusable fatal-error mechanism ("log ERROR loudly, stop, exit non-zero") that any situation needing this behaviour can use, not specific to the event processor (to do).
+- Undecodable default: keep ERROR + exit, but template it: one reusable fatal-error mechanism ("log ERROR loudly, stop, exit non-zero") that any situation needing this behaviour can use, not specific to the event processor (done: swissknife ProcessHalter df7adf9, pillar 3ddad14).
 - Gateway nbf rejection: keep.
 - examples money: keep scale 2.
 - Page-size maximum 100 in acme PaginationArguments for every Acme API: confirmed.
 - R2DBC: owner leans to keeping both; if unpooled is never needed, pooled only — pending my answer.
-- JSON metaschema: bundle as a resource so tests are hermetic (to do).
+- JSON metaschema: tests hermetic (done: swissknife 4ceb4f9 — json-sKema already ships the metaschemas; our custom schema client skipped them; now chained with PrepopulatedSchemaClient; proven with no proxy: swissknife 645 and pillar 1768 tests green).
 - Pulsar tests are heavy: measure build time and optimise; very thorough deep dive on Gradle build performance across the workspace (to do).
-- Randomness (revises 9.7): production (no seed configured) uses an unseeded SecureRandom for both random and secureRandom, nothing logged; tests (seed configured) seed everything, so id generation stays reproducible in tests, with the test-only warning. Reproducing prod issues = replaying the recorded inputs with a configured seed (to do).
+- Randomness (revises 9.7): production (no seed configured) uses an unseeded SecureRandom for both random and secureRandom, nothing logged; tests (seed configured) seed everything, so id generation stays reproducible in tests, with the test-only warning. Reproducing prod issues = replaying the recorded inputs with a configured seed (done: swissknife c93a737).
 - Handled event types match by NAME (business logic, not versioning): confirmed; already implemented in pillar.
 - R2DBC: keep both createR2dbcClient (unpooled) and createPooledR2dbcClient.
 - Left-to-right composition: sweep every repo (lattice excluded: no lattice code edits) (to do).
