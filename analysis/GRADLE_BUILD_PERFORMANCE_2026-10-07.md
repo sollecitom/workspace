@@ -99,3 +99,23 @@ numbers above are the reliable comparison.
 6. **Within-JVM JUnit parallelism** (`junit.jupiter.execution.parallel.enabled`): not tried; many tests capture stdout
    (`withCapturedStandardOutput`) or share static state, so it would risk flakiness for a few seconds.
 7. modulith's 1 s real `delay` in the send-payment contract test could be shortened (cosmetic, ~1 s).
+
+## Follow-up: C1 flag removed, JUnit parallel classes (2026-10-07)
+
+- Removed `-XX:TieredStopAtLevel=1` from test JVMs (gradle-plugins 0272c0e; `-XX:+UseSerialGC` kept): C1-only could hide data races the production C2 compiler exposes.
+- JUnit Jupiter parallel execution enabled once in `TestTaskConventions` (gradle-plugins 5477c62): test classes run concurrently, methods of a class stay on one thread.
+  - Methods-concurrent was also tried: green 3/3 in every repo, but no faster than classes-only, and most test classes use `@TestInstance(PER_CLASS)` with shared fields — so classes-only.
+- Concurrency failures found: one, a REAL BUG. Avro schema catalogue objects initialised `all`/`nestedContainers` eagerly from other catalogues' lazies, so two threads touching two catalogues first could deadlock on JVM class initialisation (seen in element; same pattern in pillar, modulith, examples). Fixed by making `all`/`nestedContainers` getters (no cross-object work during object init) and dropping the redundant empty `nestedContainers` overrides: pillar 1.0.36, element a022112, modulith ab31658, examples a80d80c. Production services can hit this too: the first concurrent messages/requests touching different serdes.
+- No test-only global-mutation failures surfaced in 3 reruns per suite (every repo, lattice included), so no test rewrites or `@Isolated` were needed.
+
+Tests-only (`test --rerun`, warm, serial without C1 flag → classes-concurrent, median of 3):
+
+| Suite | Serial | Parallel classes |
+|---|---|---|
+| swissknife | 46s | 31s |
+| pillar | 15s | 10s |
+| element | 46s | 40s |
+| modulith | — | 21s |
+| examples | — | 10–11s |
+
+Full `just build-workspace`: 315s (green, all container tests and scans), vs 295s before (that run had C1-only JVMs and more cache hits; 377s for the run before this follow-up).
