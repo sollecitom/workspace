@@ -22,3 +22,6 @@
 20. AesProtectedValueTests access-hook test doesn't prove "before decryption".
 21. Missing tests: map(deserializer); malformed override require; getIntArrayOrNull strictness; decimal getter on non-decimal bytes; OpenTelemetryModule.stop; MDC child-thread non-inheritance.
 22. PooledR2dbcClientTests in sql-postgres-utils (needs a driver) — fine, maybe note.
+
+## Status (87959b0, 9616b5f, 4f8edab; published 1.0.54)
+- 1 untouched (owner). 5 not changed (no caller reads names before start; Pulsar assigns them on subscribe). 17 kept (close() pairs with createPooledR2dbcClient). 22 kept (needs a real driver). 8: email empty-label check kept (owner TODO restored); parseContent resolves refs by default (else base location is useless); LogEntry unchanged (original schema contradicted itself; formatter and schema now agree). Everything else fixed; owner TODOs restored in DowngradingOpenApiDefinitionReader.

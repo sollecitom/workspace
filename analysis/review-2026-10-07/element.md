@@ -16,3 +16,4 @@
 14. L outputs-manager: no 403 / page-size 400 contract tests.
 15. L import churn on `lens.map` in seven endpoint files (revert churn).
 16. L CSVRow.kt holds csvFile/asCsvDate → rename/split file; CompliancePlanNotFound in report.csv package used beyond CSV → move.
+17. L StubbedCompliancePlanOutputsRepository: new storeStandardsOutputs/storeRequirementsOutputs are `TODO("Not yet implemented")` → implement them in the stub like the other methods.
