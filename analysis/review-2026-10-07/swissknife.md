@@ -1,6 +1,6 @@
 # Review findings: swissknife (to verify and fix)
 
-1. H CoreDataGeneratorProvider.kt:21,24,27 — production ids (ULID, KSUID, UUIDv4/v7, external) derive from `random`, seeded with a value logged at INFO → ids predictable from logs. Fix: ids from `secureRandom` (unseeded in production, seeded only when a seed is configured).
+1. H [OWNER: DON'T TOUCH — discuss first] CoreDataGeneratorProvider.kt:21,24,27 — production ids (ULID, KSUID, UUIDv4/v7, external) derive from `random`, seeded with a value logged at INFO → ids predictable from logs. Fix: ids from `secureRandom` (unseeded in production, seeded only when a seed is configured).
 2. M DowngradingOpenApiDefinitionReader.kt:33,38 — versionLine regex YAML-only; JSON 3.1 silently not downgraded. Read version from the model; handle JSON; test.
 3. M JsonSchema.kt:40,45 — nested objects without properties skipped by objectSchemas; select by object type; test.
 4. M GenericRecordRoundTrip.kt:7 — writes with record.schema, reads with `schema` as writer+reader. Drop the parameter (serializeAndDeserialize()) or write with schema too.
