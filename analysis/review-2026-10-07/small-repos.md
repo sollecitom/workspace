@@ -14,3 +14,7 @@
 12. L tools Directory.kt:26 — deleteIfExists() unused now. Delete.
 13. L tools StaticPackageMigration.kt:102 — excluded-folder check applies to segments inside source sets (package x.gradle.y skipped). Only check segments before src/.
 14. L examples Transaction.kt:30 — `pricePerShare * quantity.toBigDecimal()`; TransactionTestStubs.kt:37 — rename maximumInMinorUnits → untilInMinorUnits.
+
+## Status
+- Fixed: 1, 3, 12, 13 (tools a3b3052); 5, 6, 7, 8 (quality-scorer b4fb5b9); 11 (facts 2ace5b6); 10 (acme bc1b0f2, 1.0.12).
+- Pending (other waves): 2, 9 (modulith/pillar), 4, 14 (examples).

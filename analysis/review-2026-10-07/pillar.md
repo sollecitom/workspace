@@ -18,3 +18,4 @@
 16. L AcmeTopicValueSchemaRules tests in AcmeAvroSchemaRulesTests → own class.
 17. L tests: InvocationContext.specifiedLocale no_NO_NY path; customer-scoped with specifiedTargetCustomer.
 18. L factory overloads parameter order inconsistent; require(handledTypes.isNotEmpty()).
+19. L CurrencyAmountJsonSerde read check `^[0-9]+$` → align with acme `^[0-9]{1,100}$` (acme 1.0.12).
