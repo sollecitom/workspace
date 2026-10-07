@@ -51,17 +51,17 @@ public-API code works there) and tell the owner. element and modulith haven't be
 
 ## 5. tools
 
-- [x] 5.2 **H** package-migrator text/path replacement has no identifier/segment boundaries — needs decision: real; whole-name matching changes the template-cloning use case and text/path matching must agree — decided 2026-10-06: match whole package segments only, the same for text and paths (to do)
-- [x] 5.3 **M** package-migrator targets the working directory; README stale — needs decision: real; CLI design — decided 2026-10-06: add --project <dir> (default: working directory) and fix the README (to do)
-- [x] 5.5 **M** package-migrator moves excluded directories but doesn't rewrite them — uncertain: real, suggested filter insufficient; how narrow the excluded-folder rule should be is a design choice — decided 2026-10-06: never move excluded directories (build, .git, .kotlin, gradle; also add .gradle and .idea) (to do)
+- [x] 5.2 **H** package-migrator text/path replacement has no identifier/segment boundaries — needs decision: real; whole-name matching changes the template-cloning use case and text/path matching must agree — decided 2026-10-06: match whole package segments only, the same for text and paths (done: tools 51117ae)
+- [x] 5.3 **M** package-migrator targets the working directory; README stale — needs decision: real; CLI design — decided 2026-10-06: add --project <dir> (default: working directory) and fix the README (done: tools 51117ae)
+- [x] 5.5 **M** package-migrator moves excluded directories but doesn't rewrite them — uncertain: real, suggested filter insufficient; how narrow the excluded-folder rule should be is a design choice — decided 2026-10-06: never move excluded directories (build, .git, .kotlin, gradle; also add .gradle and .idea) (done: tools 51117ae)
 - [x] 5.9 **L** license-audit self-check tests paths production never uses — needs decision: real; test strategy (new self-checks do cover the real path) — decided 2026-10-06: closed: the JUnit tests cover the real path
 
 ## 6. quality-scorer
 
-- [x] 6.1 **H** `--project` not validated: empty/missing project scores 0.65 — non-directory `--project` now exits 2; needs decision: an empty directory still scores 0.65 (usage error vs score 0) — decided 2026-10-06 (paused stub, recommendations): no Kotlin files is a usage error (exit 2) (to do)
-- [x] 6.2 **M** Missing/unparsable `--coverage` silently scores 0 — needs decision: real; fail vs warn is grading policy — decided 2026-10-06 (paused stub, recommendations): fail clearly when a given coverage path cannot be read (to do)
-- [x] 6.5 **L** `productionFunctions` includes helpers in test sources — needs decision: real; scoring semantics — decided 2026-10-06 (paused stub, recommendations): count only functions in main source sets (to do)
-- [x] 6.6 **L** Walk includes `build/`/`.gradle/`; `isTestPath` misses `testFixtures`/`integrationTest` — needs decision: real; scoring semantics — decided 2026-10-06 (paused stub, recommendations): skip build directories; any src/*test* is test code (to do)
+- [x] 6.1 **H** `--project` not validated: empty/missing project scores 0.65 — non-directory `--project` now exits 2; needs decision: an empty directory still scores 0.65 (usage error vs score 0) — decided 2026-10-06 (paused stub, recommendations): no Kotlin files is a usage error (exit 2) (done: quality-scorer 8e7f774)
+- [x] 6.2 **M** Missing/unparsable `--coverage` silently scores 0 — needs decision: real; fail vs warn is grading policy — decided 2026-10-06 (paused stub, recommendations): fail clearly when a given coverage path cannot be read (done: quality-scorer 8e7f774)
+- [x] 6.5 **L** `productionFunctions` includes helpers in test sources — needs decision: real; scoring semantics — decided 2026-10-06 (paused stub, recommendations): count only functions in main source sets (done: quality-scorer 8e7f774)
+- [x] 6.6 **L** Walk includes `build/`/`.gradle/`; `isTestPath` misses `testFixtures`/`integrationTest` — needs decision: real; scoring semantics — decided 2026-10-06 (paused stub, recommendations): skip build directories; any src/*test* is test code (done: quality-scorer 8e7f774)
 - [x] 6.8 **L** `SourceLocation` dead — needs decision: real; removing a field from Finding is a contract change — decided 2026-10-06 (paused stub, recommendations): leave SourceLocation (owner, 2026-10-06)
 
 ## 7. examples
@@ -71,9 +71,9 @@ public-API code works there) and tell the owner. element and modulith haven't be
 
 ## 8. facts (unwired)
 
-- [x] 8.1 **L** `waitForTurn` matches historical events (replay flow) — real; facts is unwired — report only — decided 2026-10-06: fix anyway (to do)
-- [x] 8.2 **L** `runBlocking` in projection getter called from suspend code — real; facts is unwired — report only — decided 2026-10-06: fix anyway (to do)
-- [x] 8.3 **L** Vacuous `assertThat(true).isTrue()`; stale `.gitmodules` — real; facts is unwired — report only — decided 2026-10-06: fix anyway (to do)
+- [x] 8.1 **L** `waitForTurn` matches historical events (replay flow) — real; facts is unwired — report only — decided 2026-10-06: fix anyway (done: facts c7e977c)
+- [x] 8.2 **L** `runBlocking` in projection getter called from suspend code — real; facts is unwired — report only — decided 2026-10-06: fix anyway (done: facts c7e977c)
+- [x] 8.3 **L** Vacuous `assertThat(true).isTrue()`; stale `.gitmodules` — real; facts is unwired — report only — decided 2026-10-06: fix anyway (done: facts c7e977c)
 
 ## 9. swissknife
 
