@@ -139,11 +139,11 @@ public-API code works there) and tell the owner. element and modulith haven't be
 
 ## 10. pillar
 
-- [x] 10.9 **L** `MessagingEventProcessor` logs payloads at INFO — needs decision: real; log policy — decided 2026-10-07: log ids and type at INFO, payloads only at DEBUG (to do)
+- [x] 10.9 **L** `MessagingEventProcessor` logs payloads at INFO — needs decision: real; log policy — decided 2026-10-07: closed: keep payloads at INFO for now (useful for spotting patterns)
 - [x] 10.18 **L** OpenAPI rule tests never exercise JSON example rules — JSON request/response example tests added; exampleSchemaComplianceRule still untested (needs $ref fixtures) — decided 2026-10-07: closed: swissknife now tests the examples rule directly
 - [x] 10.19 **L** `JvmGcMetrics`/`JvmHeapPressureMetrics` never closed — needs decision: real; API for binder lifecycle — decided 2026-10-07: close the GC and heap-pressure binders when the meter registry stops (to do)
 - [x] 10.26 **M** JSON locale serdes lack the `no_NO_NY` special case — needs decision: real; changes the JSON wire format — decided 2026-10-07: add the no_NO_NY special case to the JSON locale serdes, with a test (to do)
-- [ ] 10.27 **M** Leaf JSON serdes have no schema-compliance tests — compliance tests added for 5 leaf serdes; actor leaves fail AcmeJsonSchemaRules (needs catalogue or rule change)
+- [x] 10.27 **M** Leaf JSON serdes have no schema-compliance tests — compliance tests added for 5 leaf serdes; actor leaves fail AcmeJsonSchemaRules (needs catalogue or rule change) — decided 2026-10-07: fix the catalogue's actor schemas to satisfy the rules, then add the compliance tests (to do)
 
 ## 11. modulith-example
 
