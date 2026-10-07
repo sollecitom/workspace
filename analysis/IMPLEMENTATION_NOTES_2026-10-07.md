@@ -52,4 +52,5 @@
 - R2DBC: owner leans to keeping both; if unpooled is never needed, pooled only — pending my answer.
 - JSON metaschema: bundle as a resource so tests are hermetic (to do).
 - Pulsar tests are heavy: measure build time and optimise; very thorough deep dive on Gradle build performance across the workspace (to do).
-- Pending: id predictability (re-explained), handled-by-name semantics (explained), composition sweep (unanswered), examples/swissknife Pulsar test overlap (folded into the build-performance dive).
+- Randomness (revises 9.7): production (no seed configured) uses an unseeded SecureRandom for both random and secureRandom, nothing logged; tests (seed configured) seed everything, so id generation stays reproducible in tests, with the test-only warning. Reproducing prod issues = replaying the recorded inputs with a configured seed (to do).
+- Pending: handled-by-name semantics (explained), composition sweep (unanswered), examples/swissknife Pulsar test overlap (folded into the build-performance dive).
