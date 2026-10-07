@@ -54,7 +54,7 @@
 - Page-size maximum 100 in acme PaginationArguments for every Acme API: confirmed.
 - R2DBC: owner leans to keeping both; if unpooled is never needed, pooled only — pending my answer.
 - JSON metaschema: tests hermetic (done: swissknife 4ceb4f9 — json-sKema already ships the metaschemas; our custom schema client skipped them; now chained with PrepopulatedSchemaClient; proven with no proxy: swissknife 645 and pillar 1768 tests green).
-- Pulsar tests are heavy: measure build time and optimise; very thorough deep dive on Gradle build performance across the workspace (to do).
+- Pulsar tests / build performance (done: build-workspace 646s → 295s; gradle-plugins 44d34c3, a7f1bc8, element 6bc3827; details and owner proposals in analysis/GRADLE_BUILD_PERFORMANCE_2026-10-07.md).
 - Randomness (revises 9.7): production (no seed configured) uses an unseeded SecureRandom for both random and secureRandom, nothing logged; tests (seed configured) seed everything, so id generation stays reproducible in tests, with the test-only warning. Reproducing prod issues = replaying the recorded inputs with a configured seed (done: swissknife c93a737).
 - Handled event types match by NAME (business logic, not versioning): confirmed; already implemented in pillar.
 - R2DBC: keep both createR2dbcClient (unpooled) and createPooledR2dbcClient.
