@@ -67,7 +67,7 @@ public-API code works there) and tell the owner. element and modulith haven't be
 ## 7. examples
 
 - [x] 7.5 **L** `cardAuthWasProcessed` dead — needs decision: real; part of a factory set, deletion is taste — decided 2026-10-06: leave it
-- [x] 7.6 **L** Money fields as `double` in test schemas — needs decision: real; modelling — decided 2026-10-06: switch money to the Avro decimal form chosen for acme (bytes, logical type decimal) (to do)
+- [x] 7.6 **L** Money fields as `double` in test schemas — needs decision: real; modelling — decided 2026-10-06: switch money to the Avro decimal form chosen for acme (bytes, logical type decimal) (done: examples 56ca8f2, 245b039; scale 2 not 0 because the amounts have cents — discuss)
 
 ## 8. facts (unwired)
 
@@ -155,8 +155,8 @@ public-API code works there) and tell the owner. element and modulith haven't be
 - [x] 11.10 **M** No positive-amount check on payments/deposits — needs decision: real; domain rule — left to the owner with 11.1 (same piece of work)
 - [x] 11.11 **L** `AccountEvent.avsc` wrong record name (see 4.1) — needs decision: see 4.1 — decided 2026-10-06: with 4.1 (to do)
 - [x] 11.12 **L** Publisher log says "compliance plan event" and leaks amounts — log text fixed; needs decision: logging full events at INFO — decided 2026-10-07: closed: the publisher's own logging is its choice; keep it at INFO
-- [x] 11.16 **L** Random node name; `INSTANCE_*` env vars never read — needs decision: real; instance identity — decided 2026-10-07: build ServiceInfo from INSTANCE_NODE_NAME (the charts aren't used, leave them). The 2-container Docker test must keep distinct names per container: the container factory already defaults to a random name per call, so verify it still passes (to do)
-- [x] 11.18 **L** Registry auth lookup result discarded — needs decision: real; delete or wire Docker auth — decided 2026-10-07: delete the lookup; registry login comes from the Docker config (to do)
+- [x] 11.16 **L** Random node name; `INSTANCE_*` env vars never read — needs decision: real; instance identity — decided 2026-10-07: build ServiceInfo from INSTANCE_NODE_NAME (the charts aren't used, leave them). The 2-container Docker test must keep distinct names per container: the container factory already defaults to a random name per call, so verify it still passes (done: modulith 93a3682..596c960; 2-container test green)
+- [x] 11.18 **L** Registry auth lookup result discarded — needs decision: real; delete or wire Docker auth — decided 2026-10-07: delete the lookup; registry login comes from the Docker config (done: modulith 93a3682)
 - [x] 11.19 **L** Partitioned topic only pre-created in tests — needs decision: real; provisioning — left to the owner with 11.1 (same piece of work)
 
 ## 12. element-service-example
@@ -203,6 +203,6 @@ public-API code works there) and tell the owner. element and modulith haven't be
 ## New (from the redo and the 2026-10-06 review)
 
 - [x] N.1 **L** package-migrator: migrating `a.b` → `a.b.v2` still fails in the directory phase (moves a directory into itself) — decided 2026-10-06: move through a temporary location, with a test (to do)
-- [ ] N.2 **H** Pulsar 5: swissknife now uses only public Pulsar APIs (works on 4.2.4 and 5.0.0), but 5.0.0 is blocked by slog 0.10.0 (picks Log4j2 when log4j-api is present, then needs log4j-core; our services carry log4j-to-slf4j for Yauaa). Client pinned at 4.2.4. **Agreed next (when the owner is back):** drop the unused `web-client-info-analyzer` dependency from swissknife `web-api-utils`, move pillar's gateway stub (`GatewayHttpFilter`, `GatewayInvocationContextFilter`, `GATEWAY.md`) and its Yauaa dependency into its own pillar module, confirm `log4j-api` is gone from the services, then retry Pulsar 5; first run `build-workspace` (last changes unverified)
+- [x] N.2 **H** Pulsar 5 — done 2026-10-07: running on Pulsar 5.0.0. Root cause of the hang: slog 0.10.0 (via Pulsar 5) restores absent MDC keys with null, and swissknife Slf4jMDCAdapter.put rejected null, crashing Pulsar I/O threads. Fixed in swissknife 1.0.50 (null removes the key, with tests); examples and modulith Pulsar tests green
 - [ ] N.4 **H** Evolving topics with new event types (decided 2026-10-06, to do): (1) swissknife namespace compatibility default `BACKWARD_TRANSITIVE` (FULL_TRANSITIVE rejects new union branches); (2) lint rule: a topic's value schema reaches its events through a union; (3) pillar's processor checks the event-type header before decoding and acks unhandled types without deserialising them (handlers declare the types they handle), tested with an undecodable payload of an unhandled type
 - [x] N.3 **L** Readability leftovers: one failure-injection style in the two `CompliancePlanEventProcessingTests`; Pulsar client closing style in the outputs-manager module spec; package-migrator relative-path helper — decided 2026-10-06: tidy all three (to do)
