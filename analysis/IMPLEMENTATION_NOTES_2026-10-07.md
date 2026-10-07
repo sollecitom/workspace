@@ -36,3 +36,4 @@
 - lattice depends on swissknife but uses none of the changed APIs (grep); only its version bumps.
 - quality-scorer: usage errors are a dedicated InvalidInputException (b5452b6); Main exits 2 only for those.
 - facts and quality-scorer catalogs bumped by `just build` (facts swissknife 1.0.26 → 1.0.46), confirmed by owner.
+- tools N.1/N.3 (6630667, b7b39b1): migrating into a subpackage works (two-step move through a temporary package); emptied source directories are deleted up to the source-set root; a single-segment source package is rewritten as a name or a path by context (a single segment right after a separator and followed by a dot, like `/a.properties`, reads as a path — inherently ambiguous).
