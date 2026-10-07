@@ -14,7 +14,7 @@ confirms we are done.
 
 **Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, swissknife, pillar, modulith, element.
 
-**Next:** the remaining N items, element (12.x), and the remaining N items.
+**Next:** review finished (N.2 and N.4 already decided). Implement every "(to do)" decision when the owner says go., element (12.x), and the remaining N items.
 
 **Then the actual work:** implement every "(to do)" decision, then `just build-workspace` until green, commit.
 
