@@ -31,4 +31,4 @@ Expected gain: ~20–30s per full workspace build.
 
 ## Rejected
 
-- **Skip `jibDockerBuild` when the image is unchanged** (fingerprint label on the image + `onlyIf` with `docker image inspect`): tried 2026-10-07, saved ~3.5s per service repo on a no-change build (no-change `build-workspace` 77s → 71s). Not worth the extra convention complexity; reverted (gradle-plugins 4021000).
+- **Skip `jibDockerBuild` when the image is unchanged** (fingerprint label on the image + `onlyIf` with `docker image inspect`): tried 2026-10-07, saved ~3.5s per service repo on a no-change build (no-change `build-workspace` 77s → 71s). Not worth the extra convention complexity; reverted (gradle-plugins 3ef2b2f).
