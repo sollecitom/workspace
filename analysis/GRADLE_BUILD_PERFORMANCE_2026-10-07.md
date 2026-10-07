@@ -86,7 +86,7 @@ numbers above are the reliable comparison.
    roughly 20–30 s wall per full `build-workspace`. Trade-off: reused containers outlive the build (not reaped by
    Ryuk), state persists between runs (tests already use random topic names), and container config must be identical
    to match. Would live in swissknife's pulsar/postgres test-utils.
-3. **Skip `jibDockerBuild` when the image fingerprint is unchanged and the image is present** (declare the fingerprint
+3. **[DONE, gradle-plugins 799a780 / 1.0.46]** **Skip `jibDockerBuild` when the image fingerprint is unchanged and the image is present** (declare the fingerprint
    as input and an up-to-date check that the image exists): ~5–6 s per service repo per no-change build (~10–12 s per
    `build-workspace`). Needs care with `cleanup-docker-images.sh` and pruned images.
 4. **Duplicate Pulsar coverage**: examples' `PulsarMessagingTests` implements swissknife's `MessagingTestSpecification`
@@ -119,3 +119,13 @@ Tests-only (`test --rerun`, warm, serial without C1 flag → classes-concurrent,
 | examples | — | 10–11s |
 
 Full `just build-workspace`: 315s (green, all container tests and scans), vs 295s before (that run had C1-only JVMs and more cache hits; 377s for the run before this follow-up).
+
+## Follow-up: Jib skip and the modulith delay (done)
+
+- Jib (gradle-plugins 799a780, published 1.0.46): every Jib image gets a `sollecitom.image.fingerprint` label with the `writeJibImageFingerprint` output (all Jib tasks depend on that task); `jibDockerBuild` has an `onlyIf` that runs `docker image inspect` on the image and every tag, and skips only when all exist with the same label. Works with the `--no-configuration-cache` Jib invocation.
+  - Verified on element and modulith: no-change `just build` → `jibDockerBuild SKIPPED`, container tests and scans UP-TO-DATE against the existing image; a source change → rebuild; deleting the image → rebuild (only that image).
+  - Saving: element no-change `just build` 15.0s → 11.5s (two images); modulith similar for one image. No-change `build-workspace` 77s → 71s. Smaller than the ~5–6s per repo estimated: Jib's exploded, reproducible layers are already cheap once cached.
+  - Note: any upstream bump changes the runtime classpath, so the fingerprint changes and Jib rebuilds, as it should.
+- modulith contract test (1d91815): "handling delayed processing results" completes the deferred result once the application is invoked, instead of `delay(1.seconds)`; no real sleep left.
+- Full `build-workspace` after these changes: 302s green; no-change `build-workspace`: 71s.
+
