@@ -38,5 +38,51 @@ JAVA_TOOL_OPTIONS" line to every JVM and slightly slows network-bound steps (dep
 | Change | Before → after | Commit |
 |---|---|---|
 | Tests run in one JVM per test task (Gradle default) instead of 2×CPU forks (TestTaskConventions, BackendSkeletonKotlinJvmConventions) | tests-only: swissknife 73→40 s, pillar 37→17 s, element 84→50 s | gradle-plugins 44d34c3 |
+| Test JVMs run with `-XX:TieredStopAtLevel=1 -XX:+UseSerialGC` (JvmConfiguration.testArgs) | tests-only, two runs each: pillar 16.8→14.0 s, swissknife ~40→~37 s, element ~50→~47.5 s | gradle-plugins a7f1bc8 |
+| element service tests start Postgres (and run migrations) concurrently with Pulsar | ProcessBasedServiceTests 24.5→22.4 s; same spec drives ContainerBasedServiceTests | element 6bc3827 |
+
+Intermediate measurement: the first `build-workspace` after the fork change reran every test in the workspace
+(plugin classpath changed) and took 305 s, against 646 s for the baseline run that reran tests only in the repos with
+code changes.
+
+## Measured but not changed
+
+- `--max-workers` 11 / 22 / 128 (configured): within noise once tests use one fork per task.
+- Kotlin daemon vs in-process compilation (swissknife `clean build -x test`): warm Kotlin daemon 26.8 s vs in-process
+  30.9 s (cold daemon 37.6 s). ~4 s per full compile, only when the daemon is warm; see proposals.
+- Pulsar standalone itself is ready in ~4.7 s (admin endpoint); the remaining ~6–10 s per Pulsar test class is
+  Testcontainers/Ryuk startup, topic setup and the tests. No real sleeps on hot paths: the only real-time delay found
+  in tests is a 1 s `delay` in modulith's SendPaymentCommandEndpointHttpTestSpecification (others run on virtual time).
+- `update-internal-catalog-versions.sh`: 0.06 s. Publication-state check regenerates POM/module metadata every time
+  (Gradle never treats those as up to date): ~2–6 s per publishable repo.
+- No-change `jibDockerBuild`: always reruns (Jib declares no outputs): ~5–6 s wall per service repo.
 
 ## Proposals needing the owner
+
+1. **Turn the Gradle daemon on** (`org.gradle.daemon=false` in every repo since the first commit, no recorded reason).
+   No-change `build-workspace`: 80 s → 25 s (33 s on the first run, including daemon start). In full builds it removes
+   ~2–3 s of JVM/Gradle boot from each of the ~21 invocations and keeps the in-process Kotlin compiler warm.
+   Risk seen during this dive: a daemon started earlier from a sandboxed process was reused by a later build and its
+   child processes could not exec `docker` (Jib failed). Daemons are shared by any compatible build on the machine, so
+   sandboxed agent builds and terminal builds would share daemons. Mitigations: keep it off for agents
+   (`--no-daemon`), or run `./gradlew --stop` when switching environments. Memory: one 4 GB daemon per compatible JVM
+   config (lattice's `-Djava.net.preferIPv4Stack` makes it a second one), idle-expiring after 3 h.
+2. **Testcontainers reuse for Pulsar/Postgres in local builds** (`withReuse(true)` plus
+   `testcontainers.reuse.enable=true` in `~/.testcontainers.properties`): 7 Pulsar starts per full workspace build
+   would become 1, saving ~5–8 s on each critical path that starts one (examples, modulith ×2, element ×2, swissknife):
+   roughly 20–30 s wall per full `build-workspace`. Trade-off: reused containers outlive the build (not reaped by
+   Ryuk), state persists between runs (tests already use random topic names), and container config must be identical
+   to match. Would live in swissknife's pulsar/postgres test-utils.
+3. **Skip `jibDockerBuild` when the image fingerprint is unchanged and the image is present** (declare the fingerprint
+   as input and an up-to-date check that the image exists): ~5–6 s per service repo per no-change build (~10–12 s per
+   `build-workspace`). Needs care with `cleanup-docker-images.sh` and pruned images.
+4. **Duplicate Pulsar coverage**: examples' `PulsarMessagingTests` implements swissknife's `MessagingTestSpecification`
+   (the wrapper-types round trip that swissknife's own `PulsarMessagingTests` already runs), plus two Avro/converter
+   tests of its own. Its container start is the whole examples test time (~11–12 s). Options: keep (examples document
+   usage), or drop the spec implementation from examples and keep only its two Avro tests (saves no container start,
+   since those two still need Pulsar) — so the saving is small; recommendation: keep.
+5. **Kotlin compile daemon** (`kotlin.compiler.execution.strategy=daemon`): ~4 s per full repo compile when warm; only
+   worth it together with (1) or if the Kotlin daemon is allowed to stay alive between builds.
+6. **Within-JVM JUnit parallelism** (`junit.jupiter.execution.parallel.enabled`): not tried; many tests capture stdout
+   (`withCapturedStandardOutput`) or share static state, so it would risk flakiness for a few seconds.
+7. modulith's 1 s real `delay` in the send-payment contract test could be shortened (cosmetic, ~1 s).
