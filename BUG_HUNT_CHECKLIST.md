@@ -39,15 +39,15 @@ public-API code works there) and tell the owner. element and modulith haven't be
 
 ## 4. acme-schema-catalogue
 
-- [x] 4.1 **H** `AccountEvent.avsc` declares record `AccountPlanEvent` — needs decision: rename to AccountEvent (+ alias) is backward- but not forward-compatible, so a FORWARD/FULL registry would reject it (a fix was tried and reverted) — decided 2026-10-06: rename the record to AccountEvent (to do)
-- [x] 4.2 **H** `EntityEvent.json` unsatisfiable (broken `allOf` ref, conflicting `additionalProperties`, wrong refs) — needs decision: real; Event.json has additionalProperties:false, so composition needs restructuring; unused — decided 2026-10-06: delete EntityEvent.json (to do)
-- [x] 4.5 **M** `AuthenticatedAccess.json` requires `is-test`; Avro twin has no `is_test` — needs decision: real; add `is_test` to Avro (pillar serde change) or drop from JSON required — decided 2026-10-06: add is_test to AuthenticatedAccess.avsc and pillar serde (to do)
-- [x] 4.6 **L** `EncryptionMetadata` union omits XTS — needs decision: real; adding XTS needs a pillar change, or delete the XTS schema — decided 2026-10-06: add XTS to the EncryptionMetadata union (to do)
+- [x] 4.1 **H** `AccountEvent.avsc` declares record `AccountPlanEvent` — needs decision: rename to AccountEvent (+ alias) is backward- but not forward-compatible, so a FORWARD/FULL registry would reject it (a fix was tried and reverted) — decided 2026-10-06: rename the record to AccountEvent (done: acme 4e74575)
+- [x] 4.2 **H** `EntityEvent.json` unsatisfiable (broken `allOf` ref, conflicting `additionalProperties`, wrong refs) — needs decision: real; Event.json has additionalProperties:false, so composition needs restructuring; unused — decided 2026-10-06: delete EntityEvent.json (done: acme 4e74575)
+- [x] 4.5 **M** `AuthenticatedAccess.json` requires `is-test`; Avro twin has no `is_test` — needs decision: real; add `is_test` to Avro (pillar serde change) or drop from JSON required — decided 2026-10-06: add is_test to AuthenticatedAccess.avsc and pillar serde (acme part done 4e74575; downstream to do)
+- [x] 4.6 **L** `EncryptionMetadata` union omits XTS — needs decision: real; adding XTS needs a pillar change, or delete the XTS schema — decided 2026-10-06: add XTS to the EncryptionMetadata union (done: acme 4e74575)
 - [x] 4.7 **L** `ServiceAccount.json` flattened vs Avro internal/external union — needs decision: real; modelling choice — decided 2026-10-06: leave them different: the JSON form only exists for a JavaScript client that cannot use Avro
-- [x] 4.8 **L** `CurrencyAmount.json` `units` integer ≥ 0 vs Avro string (negatives) — needs decision: real; modelling choice — decided 2026-10-06: no negatives; units as a big integer (Avro: bytes decimal, precision 100, scale 0, as BigInteger, serde rejects negatives; JSON: string ^[0-9]+$, JS-safe) (to do)
+- [x] 4.8 **L** `CurrencyAmount.json` `units` integer ≥ 0 vs Avro string (negatives) — needs decision: real; modelling choice — decided 2026-10-06: no negatives; units as a big integer (Avro: bytes decimal, precision 100, scale 0, as BigInteger, serde rejects negatives; JSON: string ^[0-9]+$, JS-safe) (done: acme 4e74575)
 - [x] 4.10 **L** `Unit.json` only allows the placeholder `"<unit>"` — needs decision: real; fill the enum or delete — decided 2026-10-06: by design (pillar serialises Kotlin Unit as "<unit>")
-- [x] 4.11 **L** `PaginationArguments.json` `limit` has no minimum — needs decision: real; minimum 0 or 1 is a product call — decided 2026-10-06: minimum 1 (to do)
-- [x] 4.12 **L** `envelope_type` free string, not tied to the union branch — needs decision: real; modelling choice — decided 2026-10-06: keep the envelope records (Avro cannot nest unions) but drop envelope_type: the union branch identifies the case, serdes dispatch on the branch record name; per-union type enums and the swissknife enum-type envelope helpers go (to do)
+- [x] 4.11 **L** `PaginationArguments.json` `limit` has no minimum — needs decision: real; minimum 0 or 1 is a product call — decided 2026-10-06: minimum 1 (done: acme 4e74575)
+- [x] 4.12 **L** `envelope_type` free string, not tied to the union branch — needs decision: real; modelling choice — decided 2026-10-06: keep the envelope records (Avro cannot nest unions) but drop envelope_type: the union branch identifies the case, serdes dispatch on the branch record name; per-union type enums and the swissknife enum-type envelope helpers go (acme part done 4e74575; downstream to do)
 
 ## 5. tools
 
@@ -143,7 +143,7 @@ public-API code works there) and tell the owner. element and modulith haven't be
 - [x] 10.18 **L** OpenAPI rule tests never exercise JSON example rules — JSON request/response example tests added; exampleSchemaComplianceRule still untested (needs $ref fixtures) — decided 2026-10-07: closed: swissknife now tests the examples rule directly
 - [x] 10.19 **L** `JvmGcMetrics`/`JvmHeapPressureMetrics` never closed — needs decision: real; API for binder lifecycle — decided 2026-10-07: close the GC and heap-pressure binders when the meter registry stops (to do)
 - [x] 10.26 **M** JSON locale serdes lack the `no_NO_NY` special case — needs decision: real; changes the JSON wire format — decided 2026-10-07: add the no_NO_NY special case to the JSON locale serdes, with a test (to do)
-- [x] 10.27 **M** Leaf JSON serdes have no schema-compliance tests — compliance tests added for 5 leaf serdes; actor leaves fail AcmeJsonSchemaRules (needs catalogue or rule change) — decided 2026-10-07: fix the catalogue's actor schemas to satisfy the rules, then add the compliance tests (to do)
+- [x] 10.27 **M** Leaf JSON serdes have no schema-compliance tests — compliance tests added for 5 leaf serdes; actor leaves fail AcmeJsonSchemaRules (needs catalogue or rule change) — decided 2026-10-07: fix the catalogue's actor schemas to satisfy the rules, then add the compliance tests (acme part done 4e74575; downstream to do)
 
 ## 11. modulith-example
 
