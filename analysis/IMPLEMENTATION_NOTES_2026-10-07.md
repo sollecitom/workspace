@@ -56,7 +56,7 @@
 - Handled event types match by NAME (business logic, not versioning): confirmed; already implemented in pillar.
 - R2DBC: keep both createR2dbcClient (unpooled) and createPooledR2dbcClient.
 - Left-to-right composition: sweep every repo (lattice excluded: no lattice code edits) (to do).
-- facts 8.2: revert the TicTacToeMatch suspend getters back to the previous shape (runBlocking projection); keep 8.1 and 8.3 (to do).
+- facts 8.2: revert the TicTacToeMatch suspend getters back to the previous shape (runBlocking projection); keep 8.1 and 8.3 (done: facts 3e70250).
 - modulith account event processor wiring: leave for 11.1.
 - Email empty-label check: keep. parseContent resolving refs by default: keep.
 - element: repositories take the customer passed by toCustomerScoped instead of re-reading the invocation context (it's redundant) (to do).
