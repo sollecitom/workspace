@@ -20,6 +20,7 @@
 - swissknife id predictability (review finding): untouched, awaiting your call (options given).
 - A custom onUndecodableMessage gets no processor log line (only ProcessHalter logs). Fine for tests; a production override must log itself.
 - With a configured seed (tests), random and secureRandom share one seeded instance: deterministic single-threaded, but draws from one affect the other.
+- gradle-plugins: PublishedArtifact/publication-state code is duplicated between components/base and buildSrc (pre-existing; probably because the plugins can't build themselves). Worth deduplicating (e.g. buildSrc consuming the published plugin, or a shared included build)?
 
 ## Worth mentioning
 - element: every to-do done; 2-container test and both image scans green. 12.38 verified (plan events keyed by plan id, Failover subscription): no version guard needed.
@@ -57,7 +58,7 @@
 - Randomness (revises 9.7): production (no seed configured) uses an unseeded SecureRandom for both random and secureRandom, nothing logged; tests (seed configured) seed everything, so id generation stays reproducible in tests, with the test-only warning. Reproducing prod issues = replaying the recorded inputs with a configured seed (done: swissknife c93a737).
 - Handled event types match by NAME (business logic, not versioning): confirmed; already implemented in pillar.
 - R2DBC: keep both createR2dbcClient (unpooled) and createPooledR2dbcClient.
-- Left-to-right composition: sweep every repo (lattice excluded: no lattice code edits) (to do).
+- Left-to-right composition: sweep every repo (lattice excluded) (done: swissknife 469f3cf, pillar 1284f0d/207f023, gradle-plugins bf0d084, tools f5dae9d, quality-scorer 6255576, examples e309508, modulith d9ae3e6; facts nothing; element pending).
 - facts 8.2: revert the TicTacToeMatch suspend getters back to the previous shape (runBlocking projection); keep 8.1 and 8.3 (done: facts 3e70250).
 - modulith account event processor wiring: leave for 11.1.
 - Email empty-label check: keep. parseContent resolving refs by default: keep.
