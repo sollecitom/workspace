@@ -68,3 +68,11 @@
 - element: repositories take the customer passed by toCustomerScoped instead of re-reading the invocation context (it's redundant) (done: element 0fa8824, 455a368).
 - element viewer: store the customer id type alongside its value (filter by value, return the typed id the event carried) (done: element 0fa8824; outputs-manager tables keep value only, nothing reads the id back).
 - Pending: handled-by-name semantics (explained), composition sweep (unanswered), examples/swissknife Pulsar test overlap (folded into the build-performance dive).
+
+## Final decisions (2026-10-07)
+- Tenant identity by customer id value: accepted, no change.
+- gradle-plugins buildSrc duplication: deduplicate via a shared included build (to do).
+- kotlin-jvm-conventions per-test event logging: leave as is for now.
+- Custom onFatalFailure hooks: the processor always logs ERROR before calling the hook (to do).
+- Seeded random/secureRandom sharing one instance in tests: fine.
+- Jib skip: kept. Cleanup of temporary artefacts: confirmed, after the last changes.
