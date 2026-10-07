@@ -12,9 +12,9 @@ confirms we are done.
 *record* the decision here and mark it "(to do)" — the actual changes are made later, all together, then
 `build-workspace` + commit.
 
-**Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, swissknife.
+**Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, swissknife, pillar.
 
-**Next:** pillar (10.x) open items, then modulith (11.x), element (12.x), and the remaining N items.
+**Next:** modulith (11.x), element (12.x), and the remaining N items.
 
 **Then the actual work:** implement every "(to do)" decision, then `just build-workspace` until green, commit.
 
