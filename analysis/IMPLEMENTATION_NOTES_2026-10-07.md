@@ -3,9 +3,17 @@
 ## To discuss
 - facts 8.2: TicTacToeMatch getters became suspend functions (honest API, also fixed a check-then-act race across separate replays). Alternative: live StateFlow projection, or revert to runBlocking. Owner to confirm.
 
-- 12.90 (coroutine-native HTTP bindings) skipped: http4k's HttpHandler, Filter and routing are synchronous, so a suspend handler can only run behind a blocking bridge. Truly coroutine-native means replacing http4k routing and filters (pillar gateway, logging, context, OpenAPI filters) with a suspend-native stack (Ktor, or a home-grown suspend router on a virtual-thread dispatcher). Same for readiness (http4k ReadinessCheck is synchronous; it got the 5s timeout only). Architecture decision for the owner.
+- Gateway: JWT.isValidAtTime now also checks nbf (9.47), and the gateway stub's isNotExpired() uses it, so the gateway now rejects tokens before nbf. GATEWAY.md asks for this, but it's a behaviour change in the untouched stub (alternative: switch the stub to isNotExpiredAt).
+- N.4(3): handledTypes is an explicit set per processor factory call (ProcessEvent lives in swissknife, so it isn't declared on the handler). Unhandled types are acked silently, with no log (each component decides its logging). A message with no event-type property halts in the retry loop and logs.
+- Composition style (left to right): applied to code written or touched in this round. A workspace-wide sweep of existing inside-out calls? Owner to decide.
+
 
 ## Worth mentioning
+- 12.90: decided, no change. A single runBlocking bridge, as close to the http4k handler as possible.
+- swissknife 7eb8a13 (1.0.48): the Avro builder and getters encode BigInteger/BigDecimal as decimal bytes when the field is a bytes decimal (else string as before). Pillar's CurrencyAmount serde now uses it (c49dfaa) instead of hand-building a GenericData.Record.
+- pillar 4.5: Avro AuthenticatedAccess writes is_test; on read it's ignored (like JSON), because the domain derives it from the actor.
+- pillar 9.40: no pillar main code builds accessible protected values; swissknife's ProtectedValue.loggingAccessHook() is the standard hook.
+- pillar 12.72: GATEWAY.md already listed body size limits; body schema validation is per service (pillar has no shared body parsing).
 - swissknife 9.2: hand-written monotonic UUIDv7 generator (uses the injected random and clock), with tests.
 - swissknife 9.6: truncating division changed an existing expectation (30.22/2.67: 11.32 → 11.31).
 - swissknife 9.4: Id.fromString no longer infers ULID/UUID; typed form `ulid:…`, `ksuid:…`, `uuidv7:…`, `uuid:…`, `string:…`.
