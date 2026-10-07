@@ -15,6 +15,9 @@
 - element 12.83: the 403 for a missing customer has an empty body.
 - element dispatch is now a map from event type to handler, and handledTypes is its keys (no drift). A type missing from the map can no longer reach a handler; if it somehow did, it throws and the processor retries in place (halts), consistent with D1.
 - swissknife keeps createR2dbcClient() unpooled (used by tests) next to the new createPooledR2dbcClient(); production uses the pooled one. Keep both, or make pooled the only one?
+- Undecodable payloads: default reaction is exitProcess(1) (on a separate thread, after one ERROR log, consumption stopped, never acked). It's a library default in pillar; services can pass their own onUndecodableMessage. OK as the default, or should the service own it explicitly (no default)?
+- "Handled" event types are matched by NAME: an unknown version of a handled name is not acked; it reaches the handler, whose type lookup fails, so it retries in place and halts loudly. Confirm.
+- swissknife id predictability (review finding): untouched, awaiting your call (options given).
 
 ## Worth mentioning
 - element: every to-do done; 2-container test and both image scans green. 12.38 verified (plan events keyed by plan id, Failover subscription): no version guard needed.

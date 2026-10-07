@@ -19,3 +19,7 @@
 17. L tests: InvocationContext.specifiedLocale no_NO_NY path; customer-scoped with specifiedTargetCustomer.
 18. L factory overloads parameter order inconsistent; require(handledTypes.isNotEmpty()).
 19. L CurrencyAmountJsonSerde read check `^[0-9]+$` → align with acme `^[0-9]{1,100}$` (acme 1.0.12).
+
+## Status (5669fd3..7f2a2b4, plus my follow-ups; published 1.0.32)
+- All 19 real and fixed. Undecodable/missing-type messages halt: UndecodableMessageException, one ERROR log, stop consuming, never ack, onUndecodableMessage (default exitingTheProcess: exitProcess(1) on a separate thread). Handled = by event name; unknown versions of a handled name go to the handler (byType lookup throws → retry in place). EventHandler + EventHandler.byType; InvocationContextFilters; toCustomerScoped passes Customer with a JSON ApiError 403.
+- Follow-ups by me: 403 uses swissknife ErrorCode.CustomerRequired (1.0.55); processAndWaitUntilAllAcked fails the test with UndecodableMessageException instead of exiting the JVM (test added); swissknife ServiceInfo.fromEnvironment (1.0.56) for the duplicated service instance info.
