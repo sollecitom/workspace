@@ -12,9 +12,9 @@ confirms we are done.
 *record* the decision here and mark it "(to do)" — the actual changes are made later, all together, then
 `build-workspace` + commit.
 
-**Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, swissknife, pillar.
+**Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, swissknife, pillar, modulith.
 
-**Next:** modulith (11.x), element (12.x), and the remaining N items.
+**Next:** element (12.x); ask whether 12.10 and its registry-auth twin follow 11.16/11.18, element (12.x), and the remaining N items.
 
 **Then the actual work:** implement every "(to do)" decision, then `just build-workspace` until green, commit.
 
@@ -155,8 +155,8 @@ public-API code works there) and tell the owner. element and modulith haven't be
 - [x] 11.10 **M** No positive-amount check on payments/deposits — needs decision: real; domain rule — left to the owner with 11.1 (same piece of work)
 - [x] 11.11 **L** `AccountEvent.avsc` wrong record name (see 4.1) — needs decision: see 4.1 — decided 2026-10-06: with 4.1 (to do)
 - [x] 11.12 **L** Publisher log says "compliance plan event" and leaks amounts — log text fixed; needs decision: logging full events at INFO — decided 2026-10-07: closed: the publisher's own logging is its choice; keep it at INFO
-- [ ] 11.16 **L** Random node name; `INSTANCE_*` env vars never read — needs decision: real; instance identity
-- [ ] 11.18 **L** Registry auth lookup result discarded — needs decision: real; delete or wire Docker auth
+- [x] 11.16 **L** Random node name; `INSTANCE_*` env vars never read — needs decision: real; instance identity — decided 2026-10-07: build ServiceInfo from INSTANCE_NODE_NAME (the charts aren't used, leave them). The 2-container Docker test must keep distinct names per container: the container factory already defaults to a random name per call, so verify it still passes (to do)
+- [x] 11.18 **L** Registry auth lookup result discarded — needs decision: real; delete or wire Docker auth — decided 2026-10-07: delete the lookup; registry login comes from the Docker config (to do)
 - [x] 11.19 **L** Partitioned topic only pre-created in tests — needs decision: real; provisioning — left to the owner with 11.1 (same piece of work)
 
 ## 12. element-service-example
