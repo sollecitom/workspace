@@ -7,8 +7,15 @@
 - N.4(3): handledTypes is an explicit set per processor factory call (ProcessEvent lives in swissknife, so it isn't declared on the handler). Unhandled types are acked silently, with no log (each component decides its logging). A message with no event-type property halts in the retry loop and logs.
 - Composition style (left to right): applied to code written or touched in this round. A workspace-wide sweep of existing inside-out calls? Owner to decide.
 
+- examples 7.6: money is Avro bytes decimal with scale 2, not 0: these amounts have cents (9.95, price per share); scale 0 would mean renaming fields to minor units. Keep scale 2, or switch to integral minor units?
+- modulith never wires accountEventProcessor into the service (only the deposit and payment endpoints are modules). Left alone (related to skipped 11.1).
+- examples' PulsarMessagingTests now overlap swissknife's own PulsarMessagingTests (9.116). Keep both, or trim examples?
+- Tests that fetch the JSON Schema metaschema over the network (swissknife openapi-checking, pillar JSON) fail without network access (here: they need the sandbox proxy). Bundle the metaschema as a resource to make them hermetic?
 
 ## Worth mentioning
+- N.2 solved: Pulsar 5.0.0 works. The hang was swissknife's Slf4jMDCAdapter.put rejecting null: slog 0.10.0 (via Pulsar 5) restores absent MDC keys with null on Pulsar I/O threads. Fixed in swissknife 1.0.50.
+- modulith: in-process, 2-container and security-scan tests all green; the .trivyignore change was already committed (9c7ce73) and the scan passes.
+- modulith's security-scan test classpath prints SLF4J 1.x "StaticLoggerBinder" warnings (an old slf4j-api 1.x from a scan dependency); harmless.
 - 12.90: decided, no change. A single runBlocking bridge, as close to the http4k handler as possible.
 - swissknife 7eb8a13 (1.0.48): the Avro builder and getters encode BigInteger/BigDecimal as decimal bytes when the field is a bytes decimal (else string as before). Pillar's CurrencyAmount serde now uses it (c49dfaa) instead of hand-building a GenericData.Record.
 - pillar 4.5: Avro AuthenticatedAccess writes is_test; on read it's ignored (like JSON), because the domain derives it from the actor.
