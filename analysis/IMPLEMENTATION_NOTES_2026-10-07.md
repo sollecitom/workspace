@@ -43,3 +43,13 @@
 - facts and quality-scorer catalogs bumped by `just build` (facts swissknife 1.0.26 → 1.0.46), confirmed by owner.
 - tools N.1/N.3 (6630667, b7b39b1): migrating into a subpackage works (two-step move through a temporary package); emptied source directories are deleted up to the source-set root; a single-segment source package is rewritten as a name or a path by context (a single segment right after a separator and followed by a dot, like `/a.properties`, reads as a path — inherently ambiguous).
 - Structure pass: acme 1.0.11 (PaginationArguments maximum 100); swissknife 1.0.51/1.0.52: JSON body lenses validate against schema-aware serdes (400 on mismatch; modulith gets it automatically), createPooledR2dbcClient + DatabaseClient.close(), ImageSecurityScanTestSpecification (scan tests are one-liners); pillar 1.0.29: toCustomerScoped next to toAuthenticated; element: local helpers and BoundedPaginationArguments.json deleted, probe initial delays removed (startupProbe gates them), known Market/SDO codes in one private enum, N.3 test tidy-ups.
+
+## Decisions from the 2026-10-07 discussion (to do unless noted)
+- Undecodable default: keep ERROR + exit, but template it: one reusable fatal-error mechanism ("log ERROR loudly, stop, exit non-zero") that any situation needing this behaviour can use, not specific to the event processor (to do).
+- Gateway nbf rejection: keep.
+- examples money: keep scale 2.
+- Page-size maximum 100 in acme PaginationArguments for every Acme API: confirmed.
+- R2DBC: owner leans to keeping both; if unpooled is never needed, pooled only — pending my answer.
+- JSON metaschema: bundle as a resource so tests are hermetic (to do).
+- Pulsar tests are heavy: measure build time and optimise; very thorough deep dive on Gradle build performance across the workspace (to do).
+- Pending: id predictability (re-explained), handled-by-name semantics (explained), composition sweep (unanswered), examples/swissknife Pulsar test overlap (folded into the build-performance dive).
