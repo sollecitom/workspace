@@ -139,7 +139,7 @@ public-API code works there) and tell the owner. element and modulith haven't be
 
 ## 10. pillar
 
-- [x] 10.9 **L** `MessagingEventProcessor` logs payloads at INFO — needs decision: real; log policy — decided 2026-10-07: closed: keep payloads at INFO for now (useful for spotting patterns)
+- [x] 10.9 **L** `MessagingEventProcessor` logs payloads at INFO — needs decision: real; log policy — decided 2026-10-07: remove the generic received/processed/ignored INFO logging from MessagingEventProcessor; each consumer, processor or producer decides what to log and when. Keep the error log on failure and retry, so failures aren't silent (to do)
 - [x] 10.18 **L** OpenAPI rule tests never exercise JSON example rules — JSON request/response example tests added; exampleSchemaComplianceRule still untested (needs $ref fixtures) — decided 2026-10-07: closed: swissknife now tests the examples rule directly
 - [x] 10.19 **L** `JvmGcMetrics`/`JvmHeapPressureMetrics` never closed — needs decision: real; API for binder lifecycle — decided 2026-10-07: close the GC and heap-pressure binders when the meter registry stops (to do)
 - [x] 10.26 **M** JSON locale serdes lack the `no_NO_NY` special case — needs decision: real; changes the JSON wire format — decided 2026-10-07: add the no_NO_NY special case to the JSON locale serdes, with a test (to do)
@@ -154,7 +154,7 @@ public-API code works there) and tell the owner. element and modulith haven't be
 - [x] 11.8 **H** account-event-processor handlers all TODO (unwired); README says Done — needs decision: real; README section left as is — left to the owner with 11.1 (same piece of work)
 - [x] 11.10 **M** No positive-amount check on payments/deposits — needs decision: real; domain rule — left to the owner with 11.1 (same piece of work)
 - [x] 11.11 **L** `AccountEvent.avsc` wrong record name (see 4.1) — needs decision: see 4.1 — decided 2026-10-06: with 4.1 (to do)
-- [ ] 11.12 **L** Publisher log says "compliance plan event" and leaks amounts — log text fixed; needs decision: logging full events at INFO
+- [x] 11.12 **L** Publisher log says "compliance plan event" and leaks amounts — log text fixed; needs decision: logging full events at INFO — decided 2026-10-07: closed: the publisher's own logging is its choice; keep it at INFO
 - [ ] 11.16 **L** Random node name; `INSTANCE_*` env vars never read — needs decision: real; instance identity
 - [ ] 11.18 **L** Registry auth lookup result discarded — needs decision: real; delete or wire Docker auth
 - [x] 11.19 **L** Partitioned topic only pre-created in tests — needs decision: real; provisioning — left to the owner with 11.1 (same piece of work)
