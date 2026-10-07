@@ -13,6 +13,8 @@
 - Tests that fetch the JSON Schema metaschema over the network (swissknife openapi-checking, pillar JSON) fail without network access (here: they need the sandbox proxy). Bundle the metaschema as a resource to make them hermetic?
 - Page size maximum: element picked 100; the structure pass puts `maximum: 100` in acme's PaginationArguments (one source; no configuration value needed since the bound lives in the schema). Confirm 100 for all Acme APIs.
 - element 12.83: the 403 for a missing customer has an empty body.
+- element dispatch is now a map from event type to handler, and handledTypes is its keys (no drift). A type missing from the map can no longer reach a handler; if it somehow did, it throws and the processor retries in place (halts), consistent with D1.
+- swissknife keeps createR2dbcClient() unpooled (used by tests) next to the new createPooledR2dbcClient(); production uses the pooled one. Keep both, or make pooled the only one?
 
 ## Worth mentioning
 - element: every to-do done; 2-container test and both image scans green. 12.38 verified (plan events keyed by plan id, Failover subscription): no version guard needed.
@@ -37,3 +39,4 @@
 - quality-scorer: usage errors are a dedicated InvalidInputException (b5452b6); Main exits 2 only for those.
 - facts and quality-scorer catalogs bumped by `just build` (facts swissknife 1.0.26 → 1.0.46), confirmed by owner.
 - tools N.1/N.3 (6630667, b7b39b1): migrating into a subpackage works (two-step move through a temporary package); emptied source directories are deleted up to the source-set root; a single-segment source package is rewritten as a name or a path by context (a single segment right after a separator and followed by a dot, like `/a.properties`, reads as a path — inherently ambiguous).
+- Structure pass: acme 1.0.11 (PaginationArguments maximum 100); swissknife 1.0.51/1.0.52: JSON body lenses validate against schema-aware serdes (400 on mismatch; modulith gets it automatically), createPooledR2dbcClient + DatabaseClient.close(), ImageSecurityScanTestSpecification (scan tests are one-liners); pillar 1.0.29: toCustomerScoped next to toAuthenticated; element: local helpers and BoundedPaginationArguments.json deleted, probe initial delays removed (startupProbe gates them), known Market/SDO codes in one private enum, N.3 test tidy-ups.
