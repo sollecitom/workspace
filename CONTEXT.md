@@ -72,10 +72,9 @@ Current workspace pipeline execution:
 - workspace flows run sequentially in dependency order across all repos
 - within any single repo, requested steps still run sequentially
 
-### Build performance: ideas to revisit
+### Build performance
 
-- **Gradle daemon** (off today, see Gradle Lock / Daemon Issues): measured 2026-10-07, a no-change `build` drops from ~80s to ~25s with it on, and every invocation saves 2–3s. Risk seen: a daemon started from a sandboxed process gets reused by a later build and can't reach Docker (Jib fails).
-- **Kotlin compile daemon**: ~4s per full swissknife compile; only worth it together with the Gradle daemon.
+Ideas measured or designed but not implemented yet live in BUILD_IMPROVEMENTS.md.
 
 ## Build Troubleshooting
 
