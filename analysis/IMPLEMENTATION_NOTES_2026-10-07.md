@@ -11,8 +11,14 @@
 - modulith never wires accountEventProcessor into the service (only the deposit and payment endpoints are modules). Left alone (related to skipped 11.1).
 - examples' PulsarMessagingTests now overlap swissknife's own PulsarMessagingTests (9.116). Keep both, or trim examples?
 - Tests that fetch the JSON Schema metaschema over the network (swissknife openapi-checking, pillar JSON) fail without network access (here: they need the sandbox proxy). Bundle the metaschema as a resource to make them hermetic?
+- Page size maximum: element picked 100; the structure pass puts `maximum: 100` in acme's PaginationArguments (one source; no configuration value needed since the bound lives in the schema). Confirm 100 for all Acme APIs.
+- element 12.83: the 403 for a missing customer has an empty body.
 
 ## Worth mentioning
+- element: every to-do done; 2-container test and both image scans green. 12.38 verified (plan events keyed by plan id, Failover subscription): no version guard needed.
+- element: the viewer now stores plan and customer ids as typed strings (consequence of 9.4).
+- element 12.48: plan, report and outputs written in one transaction via new storeStandardsOutputs/storeRequirementsOutputs repository methods, with a Postgres test that a failed write stores nothing.
+- Structure pass (tier-0): element's helpers moved upstream (body schema validation in swissknife's body lens, R2DBC pooling in createR2dbcClient, toCustomerScoped in pillar), duplications reduced; see the final report.
 - N.2 solved: Pulsar 5.0.0 works. The hang was swissknife's Slf4jMDCAdapter.put rejecting null: slog 0.10.0 (via Pulsar 5) restores absent MDC keys with null on Pulsar I/O threads. Fixed in swissknife 1.0.50.
 - modulith: in-process, 2-container and security-scan tests all green; the .trivyignore change was already committed (9c7ce73) and the scan passes.
 - modulith's security-scan test classpath prints SLF4J 1.x "StaticLoggerBinder" warnings (an old slf4j-api 1.x from a scan dependency); harmless.
