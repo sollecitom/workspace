@@ -21,6 +21,9 @@
 - A custom onUndecodableMessage gets no processor log line (only ProcessHalter logs). Fine for tests; a production override must log itself.
 - With a configured seed (tests), random and secureRandom share one seeded instance: deterministic single-threaded, but draws from one affect the other.
 - gradle-plugins: PublishedArtifact/publication-state code is duplicated between components/base and buildSrc (pre-existing; probably because the plugins can't build themselves). Worth deduplicating (e.g. buildSrc consuming the published plugin, or a shared included build)?
+- Tenant identity in element is the customer id VALUE (type ignored): two customers whose ids share a value but differ in type would share a tenant. Normalise the customer id type at the boundary (gateway/event ingestion) and filter on the typed id, or accept?
+- Test JVM flag -XX:TieredStopAtLevel=1 (C1 only, from the performance work): faster, but can hide data races that the production C2 compiler exposes, and slows CPU-heavy tests. Keep, or drop it (keep SerialGC)?
+- gradle-plugins: kotlin-jvm-conventions now applies TestTaskConventions (single Test config); its Test tasks no longer log per-test passed/skipped/failed events.
 
 ## Worth mentioning
 - element: every to-do done; 2-container test and both image scans green. 12.38 verified (plan events keyed by plan id, Failover subscription): no version guard needed.
