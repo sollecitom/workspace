@@ -12,9 +12,9 @@ confirms we are done.
 *record* the decision here and mark it "(to do)" — the actual changes are made later, all together, then
 `build-workspace` + commit.
 
-**Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, swissknife, pillar, modulith.
+**Done so far:** workspace, gradle-plugins, acme, tools, quality-scorer, examples, facts, swissknife, pillar, modulith, element.
 
-**Next:** element (12.x); ask whether 12.10 and its registry-auth twin follow 11.16/11.18, element (12.x), and the remaining N items.
+**Next:** the remaining N items, element (12.x), and the remaining N items.
 
 **Then the actual work:** implement every "(to do)" decision, then `just build-workspace` until green, commit.
 
@@ -184,21 +184,21 @@ public-API code works there) and tell the owner. element and modulith haven't be
 - [x] 12.49 **L** CSV dates depend on JVM locale — needs decision: real; date format — decided 2026-10-07: CSV dates as ISO yyyy-MM (to do)
 - [x] 12.50 **L** CSV has no BOM — needs decision: real; BOM — decided 2026-10-07: add a UTF-8 BOM to the CSVs (to do)
 - [x] 12.55 **L** Repository spec missing re-store/empty/null-edition cases — empty-set and null-edition cases added; re-store-keeps-applicability depends on 12.34 — re-store-keeps-decisions case added with 12.34
-- [ ] 12.57 **L** "Nonexistent plan" test uses a stub that always returns a plan — misleading name fixed; a real missing-plan test depends on 12.47
+- [x] 12.57 **L** "Nonexistent plan" test uses a stub that always returns a plan — misleading name fixed; a real missing-plan test depends on 12.47 — decided 2026-10-07: add a real missing-plan test expecting the 200 not-found result (to do)
 - [x] 12.60 **H** Ingestion only checks "authenticated" (no role/customer check) — needs decision: real; authorisation — decided 2026-10-06: the gateway restricts event endpoints to allowed machine clients (GATEWAY.md); services trust them
 - [x] 12.63 **M** No idempotency on ingestion — needs decision: real; idempotency — skipped 2026-10-06 (example): documented in element IMPROVEMENTS.md (issue + improvement 9, idempotency-keyed rotating table)
-- [ ] 12.64 **L** Always 200, even on `ApplicationResult.Error` — needs decision: real; status for a currently unreachable Error
+- [x] 12.64 **L** Always 200, even on `ApplicationResult.Error` — needs decision: real; status for a currently unreachable Error — decided 2026-10-07: closed: 200 for business outcomes matches the protocol-errors-only rule (12.47)
 - [x] 12.66 **H** Notifier serde writes fields its schema forbids; untested — needs decision: real; unclear whether the serde shape or the flat email-contract schema is intended — decided 2026-10-06: schemas now describe the nested plan the serde sends; schema-compliance test over the notification event (fails on the old schema)
-- [ ] 12.67 **M** Lifecycle notifications lose the parent message id — needs decision: real; notifier interface change
+- [x] 12.67 **M** Lifecycle notifications lose the parent message id — needs decision: real; notifier interface change — decided 2026-10-07: pass the parent message id through the notifier interface (to do)
 - [x] 12.71 **M** Round-trip tests can't detect dropped optional fields (see 12.17) — needs decision: see 12.17 — decided 2026-10-07: covered by 12.17: round-trip tests compare all fields (to do)
-- [ ] 12.72 **M** Body not schema-validated; no size limit (gzip bomb) — proposed close: body size limits are the gateway's job (awaiting confirmation)
-- [ ] 12.73 **L** Contract tests happy path only — needs decision: an Error contract case would lock in 12.64
+- [x] 12.72 **M** Body not schema-validated; no size limit (gzip bomb) — proposed close: body size limits are the gateway's job (awaiting confirmation) — decided 2026-10-07: validate request bodies against the schema (400 on failure); body size limits are the gateway's job: add them to pillar's GATEWAY.md job list (to do)
+- [x] 12.73 **L** Contract tests happy path only — needs decision: an Error contract case would lock in 12.64 — decided 2026-10-07: no contract case: cover not-found locally with an application test (returns the not-found result) and a result serde test (wire form and schema compliance) (to do)
 - [x] 12.77 **H** Upsert overwrites newer state (redelivery regresses plans) — needs decision: real; ordering guard design — skipped with 12.63 (stale re-posts are the remaining case; documented)
 - [x] 12.79 **M** `limit` not validated — needs decision: real; limit bounds — decided 2026-10-07: covered by 12.37 (to do)
-- [ ] 12.83 **L** Null customer becomes `'null'` — null customer now binds SQL NULL (no `'null'` literal); needs decision: reject with 403 instead of empty 200
-- [ ] 12.87 **L** `ApplicableRequirementsOutputsAvailable` not handled — uncertain: nothing produces the event yet
-- [ ] 12.89 **L** Full results logged at INFO — needs decision: log policy
-- [ ] 12.90 **L** `toAuthenticated` runs handlers in `runBlocking` — needs decision: shared pillar API
+- [x] 12.83 **L** Null customer becomes `'null'` — null customer now binds SQL NULL (no `'null'` literal); needs decision: reject with 403 instead of empty 200 — decided 2026-10-07: no customer returns 403 (authorisation is a protocol error) (to do)
+- [x] 12.87 **L** `ApplicableRequirementsOutputsAvailable` not handled — uncertain: nothing produces the event yet — decided 2026-10-07: closed: covered by N.4 (unhandled types acked without decoding)
+- [x] 12.89 **L** Full results logged at INFO — needs decision: log policy — decided 2026-10-07: closed: each component decides its logging (see 10.9); keep it
+- [x] 12.90 **L** `toAuthenticated` runs handlers in `runBlocking` — needs decision: shared pillar API — decided 2026-10-07: always coroutine-native HTTP bindings on top of virtual-thread executors, everywhere (pillar, swissknife, all services); replace runBlocking in toAuthenticated and the routing helpers (to do)
 
 ## New (from the redo and the 2026-10-06 review)
 
