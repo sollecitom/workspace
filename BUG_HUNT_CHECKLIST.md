@@ -198,7 +198,7 @@ public-API code works there) and tell the owner. element and modulith haven't be
 - [x] 12.83 **L** Null customer becomes `'null'` — null customer now binds SQL NULL (no `'null'` literal); needs decision: reject with 403 instead of empty 200 — decided 2026-10-07: no customer returns 403 (authorisation is a protocol error) (to do)
 - [x] 12.87 **L** `ApplicableRequirementsOutputsAvailable` not handled — uncertain: nothing produces the event yet — decided 2026-10-07: closed: covered by N.4 (unhandled types acked without decoding)
 - [x] 12.89 **L** Full results logged at INFO — needs decision: log policy — decided 2026-10-07: closed: each component decides its logging (see 10.9); keep it
-- [x] 12.90 **L** `toAuthenticated` runs handlers in `runBlocking` — needs decision: shared pillar API — decided 2026-10-07: always coroutine-native HTTP bindings on top of virtual-thread executors, everywhere (pillar, swissknife, all services); replace runBlocking in toAuthenticated and the routing helpers (to do)
+- [x] 12.90 **L** `toAuthenticated` runs handlers in `runBlocking` — needs decision: shared pillar API — decided 2026-10-07: always coroutine-native HTTP bindings on top of virtual-thread executors, everywhere (pillar, swissknife, all services); verified 2026-10-07: both servers (swissknife HttpApi, LocalWebService) run on http4k JettyLoom (virtual threads), and every request is bridged with runBlocking(MDCContext()) in swissknife SuspendingHttpHandler.asBlockingHandler and in pillar RoutingExtensions (toAuthenticated, toUnauthenticated, withContext); Http4kServiceReadinessUtils also runBlocks. Replace these bridges (to do)
 
 ## New (from the redo and the 2026-10-06 review)
 
