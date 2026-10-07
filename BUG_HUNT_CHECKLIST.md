@@ -172,17 +172,17 @@ public-API code works there) and tell the owner. element and modulith haven't be
 - [x] 12.14 **L** `default-configuration.yml` never loaded — needs decision: real; delete or load — decided 2026-10-07: delete default-configuration.yml: its port 0 defaults would mean random ports, and its instance.* keys are stale (to do)
 - [x] 12.16 **M** Migrations use `DROP TABLE` (data loss on upgrade) — needs decision: real; applied changesets must not be edited — decided 2026-10-07: closed: no data yet, migrations can change freely
 - [x] 12.17 **M** `Standard.equals` compares only reference and publication (hides serde bugs, collapses sets) — needs decision: real; equality semantics — decided 2026-10-07: keep Standard equality on reference and publication; round-trip tests compare all fields (to do)
-- [ ] 12.18 **L** Requirement `Standard`/`Clause` `compareTo` inconsistent with `equals` — needs decision: real
-- [ ] 12.20 **L** `Market`/SDO accept any name; Avro enums are closed — needs decision: real
-- [ ] 12.31 **L** Uncommitted `.trivyignore` change (also modulith) pending a security-scan run — untouched as instructed
+- [x] 12.18 **L** Requirement `Standard`/`Clause` `compareTo` inconsistent with `equals` — needs decision: real — decided 2026-10-07: extend Standard/Clause compareTo to every field equals uses (to do)
+- [x] 12.20 **L** `Market`/SDO accept any name; Avro enums are closed — needs decision: real — decided 2026-10-07: validate Market and SDO names in init against the known codes (to do)
+- [x] 12.31 **L** Uncommitted `.trivyignore` change (also modulith) pending a security-scan run — untouched as instructed — decided 2026-10-07: run the security scan during implementation; commit the .trivyignore change (element and modulith) if it passes (to do)
 - [x] 12.34 **H** Re-storing requirements resets applicability decisions — needs decision: real; applicability semantics after re-analysis — decided 2026-10-06 (revised): re-storing keeps the decision of every requirement still present (by id); new ones start undecided, removed ones go; repository-spec test
-- [ ] 12.37 **M** `limit` 0/negative/unbounded — uncertain: real; max limit and validation location are choices
-- [ ] 12.38 **M** Plan upsert has no version guard — needs decision: real; versioning scheme
-- [ ] 12.46 **H** CSV fields never quoted/escaped (formula injection, corrupt rows) — RFC-4180 quoting/escaping fixed (new CSVRow, tests); needs decision: spreadsheet formula prefixing alters data
-- [ ] 12.47 **M** Missing plan treated as entitled — needs decision: real; not-found semantics
-- [ ] 12.48 **M** Writes before publish not transactional — needs decision: real; transaction boundary
-- [ ] 12.49 **L** CSV dates depend on JVM locale — needs decision: real; date format
-- [ ] 12.50 **L** CSV has no BOM — needs decision: real; BOM
+- [x] 12.37 **M** `limit` 0/negative/unbounded — uncertain: real; max limit and validation location are choices — decided 2026-10-07: reject limit outside 1..MAX (MAX from configuration) as a protocol error: enforce it in the request schema so validation returns 400 (to do)
+- [x] 12.38 **M** Plan upsert has no version guard — needs decision: real; versioning scheme — decided 2026-10-07: closed if in-place retry keeps per-key order: verify the plan events are keyed by plan id during implementation (to do: verify)
+- [x] 12.46 **H** CSV fields never quoted/escaped (formula injection, corrupt rows) — RFC-4180 quoting/escaping fixed (new CSVRow, tests); needs decision: spreadsheet formula prefixing alters data — decided 2026-10-07: prefix cells starting with =, +, - or @ with ' (OWASP) (to do)
+- [x] 12.47 **M** Missing plan treated as entitled — needs decision: real; not-found semantics — decided 2026-10-07: error statuses are only for protocol errors; an existing path that finds no record returns 200 with an explicit not-found result, not an empty page or header-only CSV. Applies everywhere (to do)
+- [x] 12.48 **M** Writes before publish not transactional — needs decision: real; transaction boundary — decided 2026-10-07: write plan, report and outputs in one transaction (to do)
+- [x] 12.49 **L** CSV dates depend on JVM locale — needs decision: real; date format — decided 2026-10-07: CSV dates as ISO yyyy-MM (to do)
+- [x] 12.50 **L** CSV has no BOM — needs decision: real; BOM — decided 2026-10-07: add a UTF-8 BOM to the CSVs (to do)
 - [x] 12.55 **L** Repository spec missing re-store/empty/null-edition cases — empty-set and null-edition cases added; re-store-keeps-applicability depends on 12.34 — re-store-keeps-decisions case added with 12.34
 - [ ] 12.57 **L** "Nonexistent plan" test uses a stub that always returns a plan — misleading name fixed; a real missing-plan test depends on 12.47
 - [x] 12.60 **H** Ingestion only checks "authenticated" (no role/customer check) — needs decision: real; authorisation — decided 2026-10-06: the gateway restricts event endpoints to allowed machine clients (GATEWAY.md); services trust them
@@ -194,7 +194,7 @@ public-API code works there) and tell the owner. element and modulith haven't be
 - [ ] 12.72 **M** Body not schema-validated; no size limit (gzip bomb) — proposed close: body size limits are the gateway's job (awaiting confirmation)
 - [ ] 12.73 **L** Contract tests happy path only — needs decision: an Error contract case would lock in 12.64
 - [x] 12.77 **H** Upsert overwrites newer state (redelivery regresses plans) — needs decision: real; ordering guard design — skipped with 12.63 (stale re-posts are the remaining case; documented)
-- [ ] 12.79 **M** `limit` not validated — needs decision: real; limit bounds
+- [x] 12.79 **M** `limit` not validated — needs decision: real; limit bounds — decided 2026-10-07: covered by 12.37 (to do)
 - [ ] 12.83 **L** Null customer becomes `'null'` — null customer now binds SQL NULL (no `'null'` literal); needs decision: reject with 403 instead of empty 200
 - [ ] 12.87 **L** `ApplicableRequirementsOutputsAvailable` not handled — uncertain: nothing produces the event yet
 - [ ] 12.89 **L** Full results logged at INFO — needs decision: log policy
