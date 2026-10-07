@@ -62,6 +62,6 @@
 - facts 8.2: revert the TicTacToeMatch suspend getters back to the previous shape (runBlocking projection); keep 8.1 and 8.3 (done: facts 3e70250).
 - modulith account event processor wiring: leave for 11.1.
 - Email empty-label check: keep. parseContent resolving refs by default: keep.
-- element: repositories take the customer passed by toCustomerScoped instead of re-reading the invocation context (it's redundant) (to do).
-- element viewer: store the customer id type alongside its value (filter by value, return the typed id the event carried) (to do).
+- element: repositories take the customer passed by toCustomerScoped instead of re-reading the invocation context (it's redundant) (done: element 0fa8824, 455a368).
+- element viewer: store the customer id type alongside its value (filter by value, return the typed id the event carried) (done: element 0fa8824; outputs-manager tables keep value only, nothing reads the id back).
 - Pending: handled-by-name semantics (explained), composition sweep (unanswered), examples/swissknife Pulsar test overlap (folded into the build-performance dive).
