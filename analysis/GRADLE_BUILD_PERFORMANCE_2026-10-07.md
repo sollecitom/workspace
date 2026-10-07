@@ -45,6 +45,19 @@ Intermediate measurement: the first `build-workspace` after the fork change rera
 (plugin classpath changed) and took 305 s, against 646 s for the baseline run that reran tests only in the repos with
 code changes.
 
+## Final numbers
+
+| Scenario | Before | After |
+|---|---|---|
+| Tests only (`test --rerun`), swissknife / pillar / element | 73 / 37 / 84 s | ~37 / 14 / 47.5 s (≈95 s less whenever those suites rerun) |
+| `build-workspace` rerunning every test after a plugin change | — (baseline run reran tests only where code changed: 646 s) | 305 s |
+| Final `build-workspace` (green; mix of reruns and cache hits) | — | 295 s |
+| `build-workspace`, nothing changed, first run after publishes | 214 s | 150 s |
+| `build-workspace`, nothing changed, steady state | 80 s | 77 s (25 s with proposal 1) |
+
+The baseline 646 s and the later runs are not the same workload (different sets of tasks reran), so the per-suite A/B
+numbers above are the reliable comparison.
+
 ## Measured but not changed
 
 - `--max-workers` 11 / 22 / 128 (configured): within noise once tests use one fork per task.
