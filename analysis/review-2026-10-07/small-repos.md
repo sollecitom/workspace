@@ -17,4 +17,4 @@
 
 ## Status
 - Fixed: 1, 3, 12, 13 (tools a3b3052); 5, 6, 7, 8 (quality-scorer b4fb5b9); 11 (facts 2ace5b6); 10 (acme bc1b0f2, 1.0.12).
-- Pending (other waves): 2, 9 (modulith/pillar), 4, 14 (examples).
+- Fixed: 2, 9 (modulith 279c365, via pillar EventHandler.byType and swissknife ServiceInfo.fromEnvironment); 4, 14 (examples 585d6a3; money normalised to scale 2, lossy values throw).
