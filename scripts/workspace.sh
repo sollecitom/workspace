@@ -7,6 +7,7 @@ start_dir="$(pwd)"
 summary_file=""
 pipeline_update_summary_file=""
 pipeline_internal_update_summary_file=""
+pipeline_build_summary_file=""
 workspace_events_file=""
 last_recipe_log_file=""
 license_audit_runner_ready=0
@@ -27,7 +28,7 @@ base_image_update_skip_reason=""
 
 cleanup() {
     cd "$start_dir"
-    rm -f "$summary_file" "$pipeline_update_summary_file" "$pipeline_internal_update_summary_file"
+    rm -f "$summary_file" "$pipeline_update_summary_file" "$pipeline_internal_update_summary_file" "$pipeline_build_summary_file" "${pipeline_build_summary_file:+$pipeline_build_summary_file.totals}"
     if [ -n "$workspace_events_file" ]; then
         rm -f "$workspace_events_file"
     fi
@@ -413,60 +414,80 @@ collect_module_summary() {
     fi
 }
 
-print_build_test_summary() {
-    local module="$1"
+build_test_counts() {
     local sanitized_log_file
-    local summary_line
 
     [ -n "$last_recipe_log_file" ] || return 0
     [ -f "$last_recipe_log_file" ] || return 0
 
     sanitized_log_file=$(mktemp)
     sanitize_gradle_output < "$last_recipe_log_file" > "$sanitized_log_file"
-
-    summary_line="$(
-        awk '
-            /Aggregated Test Metrics:/ { in_block = 1; next }
-            in_block && /Total Tests Run:/ { run = $NF; next }
-            in_block && /Total Tests Passed:/ { passed = $NF; next }
-            in_block && /Total Tests Failed:/ { failed = $NF; next }
-            in_block && /Total Tests Skipped:/ {
-                skipped = $NF
-                printf "%s %s %s %s\n", run, passed, failed, skipped
-                exit
+    awk '
+        /Aggregated Test Metrics:/ { aggregated = 1; in_block = 1; next }
+        in_block && /Total Tests Run:/ { run += $NF; next }
+        in_block && /Total Tests Passed:/ { passed += $NF; next }
+        in_block && /Total Tests Failed:/ { failed += $NF; next }
+        in_block && /Total Tests Skipped:/ { skipped += $NF; in_block = 0; next }
+        /^[[:space:]]*>[[:space:]]+Tests:/ { task_run += $NF }
+        /^[[:space:]]*>[[:space:]]+Passed:/ { task_passed += $NF }
+        /^[[:space:]]*>[[:space:]]+Failed:/ { task_failed += $NF }
+        /^[[:space:]]*>[[:space:]]+Skipped:/ { task_skipped += $NF }
+        END {
+            if (aggregated) {
+                printf "%s %s %s %s\n", run + 0, passed + 0, failed + 0, skipped + 0
+            } else if (task_run > 0) {
+                printf "%s %s %s %s\n", task_run + 0, task_passed + 0, task_failed + 0, task_skipped + 0
             }
-        ' "$sanitized_log_file"
-    )"
-
-    if [ -z "$summary_line" ]; then
-        summary_line="$(
-            awk '
-                /^[[:space:]]*>[[:space:]]+Tests:/ { tests += $NF }
-                /^[[:space:]]*>[[:space:]]+Passed:/ { passed += $NF }
-                /^[[:space:]]*>[[:space:]]+Failed:/ { failed += $NF }
-                /^[[:space:]]*>[[:space:]]+Skipped:/ { skipped += $NF }
-                END {
-                    if (tests > 0 || passed > 0 || failed > 0 || skipped > 0) {
-                        printf "%s %s %s %s\n", tests + 0, passed + 0, failed + 0, skipped + 0
-                    }
-                }
-            ' "$sanitized_log_file"
-        )"
-    fi
-
+        }
+    ' "$sanitized_log_file"
     rm -f "$sanitized_log_file"
+}
 
-    if [ -n "$summary_line" ]; then
-        local tests
-        local passed
-        local failed
-        local skipped
+format_duration() {
+    local seconds="$1"
 
-        read -r tests passed failed skipped <<< "$summary_line"
+    if [ "$seconds" -ge 60 ]; then
+        printf '%dm %02ds' $((seconds / 60)) $((seconds % 60))
+    else
+        printf '%ds' "$seconds"
+    fi
+}
+
+print_build_test_summary() {
+    local module="$1"
+    local duration_seconds="$2"
+    local counts
+    local tests_description
+    local tests
+    local passed
+    local failed
+    local skipped
+
+    counts="$(build_test_counts)"
+    if [ -n "$counts" ]; then
+        read -r tests passed failed skipped <<< "$counts"
         echo "Tests for $module: ${tests} run, ${passed} passed, ${failed} failed, ${skipped} skipped."
+        tests_description="${tests} tests run, ${passed} passed, ${skipped} skipped"
     else
         echo "Tests for $module: no test results were reported by the build output."
+        tests_description="no tests run"
     fi
+
+    if [ -n "$pipeline_build_summary_file" ]; then
+        printf '%-26s %8s   %s\n' "$module" "$(format_duration "$duration_seconds")" "$tests_description" >> "$pipeline_build_summary_file"
+        printf '%s %s %s\n' "${tests:-0}" "${passed:-0}" "${skipped:-0}" >> "${pipeline_build_summary_file}.totals"
+    fi
+}
+
+print_build_summary() {
+    local wall_seconds="$1"
+    local totals
+
+    totals="$(awk '{ run += $1; passed += $2; skipped += $3 } END { printf "%s tests run, %s passed, %s skipped", run + 0, passed + 0, skipped + 0 }' "${pipeline_build_summary_file}.totals" 2>/dev/null || true)"
+    printf '%-26s %8s   %s\n' "Total (wall time)" "$(format_duration "$wall_seconds")" "${totals:-no tests run}" >> "$pipeline_build_summary_file"
+    rm -f "${pipeline_build_summary_file}.totals"
+    summary_file="$pipeline_build_summary_file"
+    print_summary_box "BUILD SUMMARY" "No builds ran."
 }
 
 commit_wip_if_needed() {
@@ -575,6 +596,8 @@ run_module_build() {
     local module="$1"
     local keep_state="${2:-0}"
 
+    local started_at="$SECONDS"
+
     print_header "Building" "$module"
     cd_module "$module"
     if run_just_recipe_with_gradle_lock_retry build; then
@@ -593,13 +616,15 @@ run_module_build() {
         clear_workspace_events
         reset_base_image_state
     fi
-    print_build_test_summary "$module"
+    print_build_test_summary "$module" $((SECONDS - started_at))
     echo "✓ $module built successfully"
 }
 
 run_module_rebuild() {
     local module="$1"
     local keep_state="${2:-0}"
+
+    local started_at="$SECONDS"
 
     print_header "Rebuilding" "$module"
     cd_module "$module"
@@ -615,7 +640,7 @@ run_module_rebuild() {
         clear_workspace_events
         reset_base_image_state
     fi
-    print_build_test_summary "$module"
+    print_build_test_summary "$module" $((SECONDS - started_at))
     echo "✓ $module rebuilt successfully"
 }
 
@@ -868,6 +893,11 @@ run_execute_pipeline() {
     if pipeline_includes_step update-internal "${steps[@]}"; then
         pipeline_internal_update_summary_file="$(mktemp "${TMPDIR:-/tmp}/workspace-internal-update-summary.XXXXXX")"
     fi
+    pipeline_build_summary_file=""
+    if pipeline_includes_step build "${steps[@]}" || pipeline_includes_step rebuild "${steps[@]}"; then
+        pipeline_build_summary_file="$(mktemp "${TMPDIR:-/tmp}/workspace-build-summary.XXXXXX")"
+    fi
+    local pipeline_started_at="$SECONDS"
 
     for module in $modules; do
         run_module_pipeline "$module" "${steps[@]}"
@@ -880,6 +910,9 @@ run_execute_pipeline() {
     if [ -n "$pipeline_internal_update_summary_file" ]; then
         summary_file="$pipeline_internal_update_summary_file"
         print_summary_box "INTERNAL UPDATE SUMMARY" "No internal dependency changes detected."
+    fi
+    if [ -n "$pipeline_build_summary_file" ]; then
+        print_build_summary $((SECONDS - pipeline_started_at))
     fi
 
     summary_file="$original_summary_file"
