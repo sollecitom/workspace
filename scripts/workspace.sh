@@ -8,6 +8,7 @@ summary_file=""
 pipeline_update_summary_file=""
 pipeline_internal_update_summary_file=""
 pipeline_build_summary_file=""
+module_tests_run_now=""
 workspace_events_file=""
 last_recipe_log_file=""
 license_audit_runner_ready=0
@@ -455,9 +456,7 @@ format_duration() {
 
 print_build_test_summary() {
     local module="$1"
-    local duration_seconds="$2"
     local counts
-    local tests_description
     local tests
     local passed
     local failed
@@ -467,24 +466,53 @@ print_build_test_summary() {
     if [ -n "$counts" ]; then
         read -r tests passed failed skipped <<< "$counts"
         echo "Tests for $module: ${tests} run, ${passed} passed, ${failed} failed, ${skipped} skipped."
-        tests_description="${tests} tests run, ${passed} passed, ${skipped} skipped"
+        module_tests_run_now="$tests"
     else
-        echo "Tests for $module: no test results were reported by the build output."
-        tests_description="no tests run"
-    fi
-
-    if [ -n "$pipeline_build_summary_file" ]; then
-        printf '%-26s %8s   %s\n' "$module" "$(format_duration "$duration_seconds")" "$tests_description" >> "$pipeline_build_summary_file"
-        printf '%s %s %s\n' "${tests:-0}" "${passed:-0}" "${skipped:-0}" >> "${pipeline_build_summary_file}.totals"
+        echo "Tests for $module: no tests ran (none, or all up to date)."
+        module_tests_run_now=0
     fi
 }
 
+recorded_test_counts() {
+    find build/test-results -name 'TEST-*.xml' -print0 2>/dev/null \
+        | xargs -0 grep -ho '<testsuite [^>]*' 2>/dev/null \
+        | perl -ne '($t) = /\btests="(\d+)"/; ($s) = /\bskipped="(\d+)"/; $total += $t; $skipped += $s; END { printf "%d %d\n", $total, $skipped }'
+}
+
+record_module_build_summary() {
+    local module="$1"
+    local duration_seconds="$2"
+    local total
+    local skipped
+    local run_now="${module_tests_run_now:-0}"
+    local up_to_date
+    local tests_description
+
+    cd_module "$module"
+    read -r total skipped <<< "$(recorded_test_counts)"
+    total="${total:-0}"
+    skipped="${skipped:-0}"
+    [ "$run_now" -le "$total" ] || total="$run_now"
+    up_to_date=$((total - run_now))
+    if [ "$total" -eq 0 ]; then
+        tests_description="no tests"
+    else
+        tests_description="${total} tests: ${run_now} run now, ${up_to_date} up to date, ${skipped} skipped"
+    fi
+    printf '%-26s %8s   %s\n' "$module" "$(format_duration "$duration_seconds")" "$tests_description" >> "$pipeline_build_summary_file"
+    printf '%s %s %s\n' "$total" "$run_now" "$skipped" >> "${pipeline_build_summary_file}.totals"
+}
+
 print_build_summary() {
-    local wall_seconds="$1"
+    local setup_seconds="$1"
+    local wall_seconds="$2"
     local totals
 
-    totals="$(awk '{ run += $1; passed += $2; skipped += $3 } END { printf "%s tests run, %s passed, %s skipped", run + 0, passed + 0, skipped + 0 }' "${pipeline_build_summary_file}.totals" 2>/dev/null || true)"
-    printf '%-26s %8s   %s\n' "Total (wall time)" "$(format_duration "$wall_seconds")" "${totals:-no tests run}" >> "$pipeline_build_summary_file"
+    totals="$(awk '{ total += $1; run += $2; skipped += $3 } END { if (total > 0) printf "%s tests: %s run now, %s up to date, %s skipped", total, run, total - run, skipped }' "${pipeline_build_summary_file}.totals" 2>/dev/null || true)"
+    {
+        printf '%-26s %8s\n' "workspace checks" "$(format_duration "$setup_seconds")"
+        printf '%-26s %8s   %s\n' "Total (wall time)" "$(format_duration "$wall_seconds")" "${totals:-no tests}"
+    } >> "$pipeline_build_summary_file"
     rm -f "${pipeline_build_summary_file}.totals"
     summary_file="$pipeline_build_summary_file"
     print_summary_box "BUILD SUMMARY" "No builds ran."
@@ -596,8 +624,6 @@ run_module_build() {
     local module="$1"
     local keep_state="${2:-0}"
 
-    local started_at="$SECONDS"
-
     print_header "Building" "$module"
     cd_module "$module"
     if run_just_recipe_with_gradle_lock_retry build; then
@@ -616,15 +642,13 @@ run_module_build() {
         clear_workspace_events
         reset_base_image_state
     fi
-    print_build_test_summary "$module" $((SECONDS - started_at))
+    print_build_test_summary "$module"
     echo "✓ $module built successfully"
 }
 
 run_module_rebuild() {
     local module="$1"
     local keep_state="${2:-0}"
-
-    local started_at="$SECONDS"
 
     print_header "Rebuilding" "$module"
     cd_module "$module"
@@ -640,7 +664,7 @@ run_module_rebuild() {
         clear_workspace_events
         reset_base_image_state
     fi
-    print_build_test_summary "$module" $((SECONDS - started_at))
+    print_build_test_summary "$module"
     echo "✓ $module rebuilt successfully"
 }
 
@@ -875,6 +899,9 @@ run_execute_pipeline() {
     local steps=("$@")
     local module
     local original_summary_file="$summary_file"
+    local pipeline_started_at="$SECONDS"
+    local modules_started_at
+    local module_started_at
 
     validate_execute_steps "${steps[@]}"
 
@@ -897,10 +924,15 @@ run_execute_pipeline() {
     if pipeline_includes_step build "${steps[@]}" || pipeline_includes_step rebuild "${steps[@]}"; then
         pipeline_build_summary_file="$(mktemp "${TMPDIR:-/tmp}/workspace-build-summary.XXXXXX")"
     fi
-    local pipeline_started_at="$SECONDS"
 
+    modules_started_at="$SECONDS"
     for module in $modules; do
+        module_started_at="$SECONDS"
+        module_tests_run_now=""
         run_module_pipeline "$module" "${steps[@]}"
+        if [ -n "$pipeline_build_summary_file" ]; then
+            record_module_build_summary "$module" $((SECONDS - module_started_at))
+        fi
     done
 
     if [ -n "$pipeline_update_summary_file" ]; then
@@ -912,7 +944,7 @@ run_execute_pipeline() {
         print_summary_box "INTERNAL UPDATE SUMMARY" "No internal dependency changes detected."
     fi
     if [ -n "$pipeline_build_summary_file" ]; then
-        print_build_summary $((SECONDS - pipeline_started_at))
+        print_build_summary $((modules_started_at - pipeline_started_at)) $((SECONDS - pipeline_started_at))
     fi
 
     summary_file="$original_summary_file"
