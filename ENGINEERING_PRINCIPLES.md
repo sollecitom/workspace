@@ -14,3 +14,16 @@ Apply to everything developed in any project: code, configuration, CLI output, h
   compliance. Name the trade-off when one costs another.
 - **CLIs:** a human view on a terminal, machine-readable (tab-separated) when piped, `--json` for programs;
   errors say what to do next.
+
+# Writing proposals and docs
+
+A doc is only as good as the opinions it changes, and it has to be read first. Readability is a requirement.
+
+- **Lead with what and why.** The first page stands alone: the problem, the idea, why it matters now, and what
+  you ask of the reader, explicitly. Keep the how short; mechanics and fine print go in an appendix.
+- **Make it scannable.** A short summary callout at the top, headings that say something, tables for
+  comparisons, bullets with a one-line point, short paragraphs with space around tables and callouts.
+- **Cut hard.** Keep every load-bearing fact, number and link; drop restatement and process narration.
+- **Concrete over abstract.** A worked example or a number beats a paragraph of explanation.
+- **Refer back, never forward.** Point to what the reader has already seen. If a point needs something that comes
+  later, state it in place instead of saying "below".
