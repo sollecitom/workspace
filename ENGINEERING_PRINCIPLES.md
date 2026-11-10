@@ -14,6 +14,10 @@ Apply to everything developed in any project: code, configuration, CLI output, h
   compliance. Name the trade-off when one costs another.
 - **CLIs:** a human view on a terminal, machine-readable (tab-separated) when piped, `--json` for programs;
   errors say what to do next.
+- **Requests word for word:** before calling a batch done, re-read each request exactly as it was written and
+  check every part of it is done.
+- **Docs follow behaviour:** each batch updates the project's plans and decision records; a changed rule updates
+  every doc that states it; plans give each step a status.
 
 # Writing proposals and docs
 
