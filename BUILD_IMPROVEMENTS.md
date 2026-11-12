@@ -37,7 +37,7 @@ How: in the gradle-plugins conventions, make the two tasks share a build service
 
 Cost: the two run one after the other, adding the shorter of the two to every service repo build.
 
-Evidence so far: on 2026-11-12 element's "retrieving the OpenApi definition as JSON" timed out with the scan running alongside, but also once with only the container tests running. Separating them alone doesn't fix that failure; do this only if contention shows up as a cause.
+Evidence so far: none. The element OpenAPI timeout that prompted this (2026-11-12) turned out to be the service dereferencing its spec on the first `GET /api` (fixed in swissknife 408c7d0), not contention. Do this only if contention shows up as a cause.
 
 ## Rejected
 
