@@ -29,6 +29,16 @@ Costs:
 
 Expected gain: ~20–30s per full workspace build.
 
+## Keep security scans apart from container-backed tests
+
+In a repo build, `securityScan` (Trivy, CPU and I/O heavy) runs in parallel with `containerBasedServiceTest`, which drives two service containers plus Pulsar (and Postgres in element). The contention can slow a service container's first responses.
+
+How: in the gradle-plugins conventions, make the two tasks share a build service with `maxParallelUsages = 1`, or make `securityScan` run after the container tests with `mustRunAfter`.
+
+Cost: the two run one after the other, adding the shorter of the two to every service repo build.
+
+Evidence so far: on 2026-11-12 element's "retrieving the OpenApi definition as JSON" timed out with the scan running alongside, but also once with only the container tests running. Separating them alone doesn't fix that failure; do this only if contention shows up as a cause.
+
 ## Rejected
 
 - **Skip `jibDockerBuild` when the image is unchanged** (fingerprint label on the image + `onlyIf` with `docker image inspect`): tried 2026-10-07, saved ~3.5s per service repo on a no-change build (no-change `build-workspace` 77s → 71s). Not worth the extra convention complexity; reverted (gradle-plugins 3ef2b2f).
